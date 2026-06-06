@@ -1,0 +1,388 @@
+import { useEffect, useState } from "react";
+import {
+  crearEmpresa,
+  listarEmpresas,
+  guardarEmpresaActiva,
+  obtenerEmpresaActiva,
+} from "../services/empresaService";
+
+
+export default function Empresas({ alSeleccionarEmpresa }) {
+  const administradorSistema = true;
+
+  const [empresas, setEmpresas] = useState([]);
+  const [empresaActiva, setEmpresaActiva] = useState(obtenerEmpresaActiva());
+  const [mensaje, setMensaje] = useState("");
+  const [error, setError] = useState("");
+
+  const [formulario, setFormulario] = useState({
+    rut: "",
+    razon_social: "",
+    giro: "",
+    direccion: "",
+    comuna: "",
+    ciudad: "",
+    regimen_tributario: "14D3 Pro Pyme General",
+  });
+
+  useEffect(() => {
+    cargarEmpresas();
+  }, []);
+
+  async function cargarEmpresas() {
+    try {
+      setError("");
+      const data = await listarEmpresas();
+      setEmpresas(Array.isArray(data?.empresas) ? data.empresas : []);
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  function manejarCambio(e) {
+    setFormulario({
+      ...formulario,
+      [e.target.name]: e.target.value,
+    });
+  }
+
+  async function manejarSubmit(e) {
+    e.preventDefault();
+
+    try {
+      setMensaje("");
+      setError("");
+
+      const data = await crearEmpresa(formulario);
+      setMensaje(data.mensaje || "Empresa creada correctamente");
+      setFormulario({
+        rut: "",
+        razon_social: "",
+        giro: "",
+        direccion: "",
+        comuna: "",
+        ciudad: "",
+        regimen_tributario: "14D3 Pro Pyme General",
+      });
+      await cargarEmpresas();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  function seleccionarEmpresa(empresa) {
+    guardarEmpresaActiva(empresa);
+    setEmpresaActiva(empresa);
+    setMensaje(`Empresa activa seleccionada: ${empresa.razon_social}`);
+
+    if (alSeleccionarEmpresa) {
+      alSeleccionarEmpresa(empresa);
+    }
+  }
+
+  return (
+    <div>
+      <h1 style={titulo}>Empresas</h1>
+      <p style={subtitulo}>
+        Administra y selecciona la empresa activa del sistema.
+      </p>
+
+      {empresaActiva && (
+        <div style={empresaActivaBox}>
+          <strong>Empresa activa:</strong> {empresaActiva.razon_social} - RUT {empresaActiva.rut}
+        </div>
+      )}
+
+      {mensaje && <p style={ok}>{mensaje}</p>}
+      {error && <p style={err}>{error}</p>}
+
+      {!administradorSistema && (
+        <div style={avisoCliente}>
+          Tu usuario solo puede ver empresas asignadas por el administrador del sistema.
+        </div>
+      )}
+
+      <div style={administradorSistema ? layout : layoutSoloTabla}>
+        {administradorSistema && (
+          <form style={formularioEstilo} onSubmit={manejarSubmit}>
+            <h2 style={tituloSeccion}>Crear empresa</h2>
+
+            <label style={label}>RUT</label>
+            <input
+              style={input}
+              name="rut"
+              value={formulario.rut}
+              onChange={manejarCambio}
+              placeholder="76.123.456-7"
+            />
+
+            <label style={label}>Razon social</label>
+            <input
+              style={input}
+              name="razon_social"
+              value={formulario.razon_social}
+              onChange={manejarCambio}
+              placeholder="Empresa SpA"
+            />
+
+            <label style={label}>Giro</label>
+            <input
+              style={input}
+              name="giro"
+              value={formulario.giro}
+              onChange={manejarCambio}
+              placeholder="Servicios contables"
+            />
+
+            <label style={label}>Direccion</label>
+            <input
+              style={input}
+              name="direccion"
+              value={formulario.direccion}
+              onChange={manejarCambio}
+              placeholder="Direccion comercial"
+            />
+
+            <label style={label}>Comuna</label>
+            <input
+              style={input}
+              name="comuna"
+              value={formulario.comuna}
+              onChange={manejarCambio}
+              placeholder="Comuna"
+            />
+
+            <label style={label}>Ciudad</label>
+            <input
+              style={input}
+              name="ciudad"
+              value={formulario.ciudad}
+              onChange={manejarCambio}
+              placeholder="Ciudad"
+            />
+
+            <label style={label}>Regimen tributario</label>
+            <select
+              style={input}
+              name="regimen_tributario"
+              value={formulario.regimen_tributario}
+              onChange={manejarCambio}
+            >
+              <option>14D3 Pro Pyme General</option>
+              <option>14D8 Pro Pyme Transparente</option>
+              <option>Regimen General Semi Integrado</option>
+              <option>Sin regimen definido</option>
+            </select>
+
+            <button style={boton} type="submit">
+              Guardar empresa
+            </button>
+          </form>
+        )}
+
+        <div style={tablaBox}>
+          <h2 style={tituloSeccion}>Empresas disponibles</h2>
+
+          <table style={tabla}>
+            <thead>
+              <tr>
+                <th style={th}>RUT</th>
+                <th style={th}>Razon social</th>
+                <th style={th}>Regimen</th>
+                <th style={th}>Ciudad</th>
+                <th style={th}>Accion</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {empresas.map((empresa) => {
+                const activa = empresaActiva && empresaActiva.id === empresa.id;
+
+                return (
+                  <tr key={empresa.id}>
+                    <td style={td}>{empresa.rut}</td>
+                    <td style={td}>{empresa.razon_social}</td>
+                    <td style={td}>{empresa.regimen_tributario}</td>
+                    <td style={td}>{empresa.ciudad}</td>
+                    <td style={tdAccion}>
+                      <button
+                        style={activa ? botonActivo : botonSeleccionar}
+                        title={activa ? "Empresa activa" : "Seleccionar empresa"}
+                        aria-label={activa ? "Empresa activa" : "Seleccionar empresa"}
+                        onClick={() => seleccionarEmpresa(empresa)}
+                      >
+                        {activa ? "\u2713" : "\u279C"}
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+
+              {empresas.length === 0 && (
+                <tr>
+                  <td style={td} colSpan="5">
+                    No hay empresas asignadas a tu usuario.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const titulo = {
+  fontSize: "34px",
+  color: "#0f172a",
+  marginBottom: "5px",
+};
+
+const subtitulo = {
+  color: "#475569",
+  marginBottom: "20px",
+};
+
+const empresaActivaBox = {
+  background: "#dcfce7",
+  color: "#166534",
+  border: "1px solid #86efac",
+  padding: "14px",
+  borderRadius: "14px",
+  marginBottom: "16px",
+  fontWeight: "bold",
+};
+
+const avisoCliente = {
+  background: "linear-gradient(135deg, #dff7ff, #ecfeff)",
+  color: "#0369a1",
+  border: "1px solid #7dd3fc",
+  borderRadius: "14px",
+  padding: "14px",
+  marginBottom: "18px",
+  fontWeight: "bold",
+};
+
+const layout = {
+  display: "grid",
+  gridTemplateColumns: "380px 1fr",
+  gap: "25px",
+  alignItems: "start",
+};
+
+const layoutSoloTabla = {
+  display: "grid",
+  gridTemplateColumns: "1fr",
+  gap: "25px",
+  alignItems: "start",
+};
+
+const formularioEstilo = {
+  background: "white",
+  borderRadius: "18px",
+  padding: "25px",
+  boxShadow: "0 14px 32px rgba(3, 105, 161, 0.12)",
+};
+
+const tituloSeccion = {
+  color: "#0369a1",
+  marginTop: 0,
+};
+
+const label = {
+  display: "block",
+  fontWeight: "bold",
+  color: "#1e293b",
+  marginTop: "12px",
+  marginBottom: "5px",
+};
+
+const input = {
+  width: "100%",
+  padding: "11px",
+  border: "1px solid #a9d8ef",
+  borderRadius: "10px",
+  boxSizing: "border-box",
+};
+
+const boton = {
+  width: "100%",
+  marginTop: "18px",
+  background: "#0369a1",
+  color: "white",
+  border: "none",
+  padding: "13px",
+  borderRadius: "12px",
+  fontWeight: "bold",
+  cursor: "pointer",
+};
+
+const tablaBox = {
+  background: "white",
+  borderRadius: "18px",
+  padding: "25px",
+  boxShadow: "0 14px 32px rgba(3, 105, 161, 0.12)",
+  overflowX: "auto",
+};
+
+const tabla = {
+  width: "100%",
+  borderCollapse: "collapse",
+};
+
+const th = {
+  textAlign: "left",
+  padding: "12px",
+  background: "linear-gradient(135deg, #dff7ff, #ecfeff)",
+  color: "#0369a1",
+};
+
+const td = {
+  padding: "12px",
+  borderBottom: "1px solid #e2e8f0",
+  color: "#1e293b",
+};
+
+const tdAccion = {
+  ...td,
+  textAlign: "center",
+  whiteSpace: "nowrap",
+};
+
+const botonAccionBase = {
+  color: "white",
+  border: "none",
+  width: "32px",
+  height: "32px",
+  padding: 0,
+  borderRadius: "9px",
+  fontWeight: "bold",
+  cursor: "pointer",
+  fontSize: "15px",
+  lineHeight: 1,
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+};
+
+const botonSeleccionar = {
+  ...botonAccionBase,
+  background: "linear-gradient(135deg, #0369a1, #06b6d4)",
+};
+
+const botonActivo = {
+  ...botonAccionBase,
+  background: "linear-gradient(135deg, #10b981, #06b6d4)",
+};
+
+const ok = {
+  color: "#10b981",
+  fontWeight: "bold",
+};
+
+const err = {
+  color: "#ef4444",
+  fontWeight: "bold",
+};
+

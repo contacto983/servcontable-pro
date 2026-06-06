@@ -1,0 +1,770 @@
+﻿import { useEffect, useState } from "react";
+import { obtenerEmpresaActiva } from "../../services/empresaService";
+import { listarTrabajadores } from "../../services/trabajadoresService";
+import { obtenerPeriodoTrabajo } from "../../services/periodoTrabajoService";
+import PeriodoMesSelector from "../../components/PeriodoMesSelector";
+import IconoSistema from "../../components/IconoSistema";
+import {
+  obtenerSaldoVacaciones,
+  obtenerHistorialVacacionesTrabajador,
+} from "../../services/saldoVacacionesService";
+import * as XLSX from "xlsx";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+
+export default function SaldoVacacionesRemuneraciones() {
+  const empresaActiva = obtenerEmpresaActiva();
+
+  const [periodo, setPeriodo] = useState(obtenerPeriodoTrabajo());
+  const [trabajadorId, setTrabajadorId] = useState("");
+
+  const [trabajadores, setTrabajadores] = useState([]);
+  const [saldos, setSaldos] = useState([]);
+
+  const [totales, setTotales] = useState({
+    dias_devengados: 0,
+    dias_usados: 0,
+    dias_usados_periodo: 0,
+    dias_pendientes: 0,
+    trabajadores_saldo_negativo: 0,
+  });
+
+  const [detalleTrabajador, setDetalleTrabajador] = useState(null);
+  const [historial, setHistorial] = useState([]);
+
+  const [mensaje, setMensaje] = useState("");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (empresaActiva) {
+      cargarInicial();
+    }
+  }, []);
+
+  async function cargarInicial() {
+    try {
+      setMensaje("");
+      setError("");
+
+      const trabajadoresData = await listarTrabajadores(
+        empresaActiva.id,
+        "activo"
+      );
+
+      setTrabajadores(trabajadoresData.trabajadores || []);
+
+      await buscarSaldos();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function buscarSaldos() {
+    try {
+      setMensaje("");
+      setError("");
+      setDetalleTrabajador(null);
+      setHistorial([]);
+
+      const data = await obtenerSaldoVacaciones({
+        empresa_id: empresaActiva.id,
+        periodo,
+        trabajador_id: trabajadorId,
+      });
+
+      setSaldos(Array.isArray(data.saldos) ? data.saldos : []);
+
+      setTotales(
+        data.totales || {
+          dias_devengados: 0,
+          dias_usados: 0,
+          dias_usados_periodo: 0,
+          dias_pendientes: 0,
+          trabajadores_saldo_negativo: 0,
+        }
+      );
+
+      setMensaje("Saldo de vacaciones actualizado correctamente.");
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function verHistorial(item) {
+    try {
+      setMensaje("");
+      setError("");
+
+      const data = await obtenerHistorialVacacionesTrabajador({
+        empresa_id: empresaActiva.id,
+        trabajador_id: item.trabajador_id,
+      });
+
+      setDetalleTrabajador(data.trabajador || item);
+      setHistorial(Array.isArray(data.historial) ? data.historial : []);
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  function cerrarHistorial() {
+    setDetalleTrabajador(null);
+    setHistorial([]);
+  }
+
+  function numero(valor) {
+    return Number(valor || 0);
+  }
+
+  function fechaCL(fecha) {
+    if (!fecha) return "";
+    return String(fecha).substring(0, 10);
+  }
+
+  function nombreTrabajador(item) {
+    return `${item.nombres || ""} ${item.apellidos || ""}`.trim();
+  }
+
+  function formatoDias(valor) {
+    return Number(valor || 0).toLocaleString("es-CL", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  }
+
+  function exportarExcel() {
+    const data = [];
+
+    data.push(["CONTROL DE SALDO DE VACACIONES"]);
+    data.push([`Empresa: ${empresaActiva?.razon_social || ""}`]);
+    data.push([`RUT: ${empresaActiva?.rut || ""}`]);
+    data.push([`Periodo: ${periodo}`]);
+    data.push([]);
+
+    data.push([
+      "RUT",
+      "Trabajador",
+      "Cargo",
+      "Fecha ingreso",
+      "Dias devengados",
+      "Dias usados historicos",
+      "Dias usados periodo",
+      "Dias pendientes",
+      "Estado saldo",
+    ]);
+
+    saldos.forEach((item) => {
+      data.push([
+        item.rut,
+        nombreTrabajador(item),
+        item.cargo || "",
+        fechaCL(item.fecha_ingreso),
+        numero(item.dias_devengados),
+        numero(item.dias_usados),
+        numero(item.dias_usados_periodo),
+        numero(item.dias_pendientes),
+        item.estado_saldo,
+      ]);
+    });
+
+    data.push([]);
+    data.push([
+      "TOTALES",
+      "",
+      "",
+      "",
+      numero(totales.dias_devengados),
+      numero(totales.dias_usados),
+      numero(totales.dias_usados_periodo),
+      numero(totales.dias_pendientes),
+      "",
+    ]);
+
+    const ws = XLSX.utils.aoa_to_sheet(data);
+
+    ws["!cols"] = [
+      { wch: 14 },
+      { wch: 36 },
+      { wch: 24 },
+      { wch: 16 },
+      { wch: 18 },
+      { wch: 22 },
+      { wch: 20 },
+      { wch: 18 },
+      { wch: 22 },
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Saldo Vacaciones");
+
+    XLSX.writeFile(wb, `Saldo_Vacaciones_${periodo}.xlsx`);
+  }
+
+  function exportarPDF() {
+    const doc = new jsPDF("l", "mm", "letter");
+
+    const margenX = 10;
+    const anchoPagina = doc.internal.pageSize.getWidth();
+    const altoPagina = doc.internal.pageSize.getHeight();
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.text("Control de Saldo de Vacaciones", margenX, 14);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.text(`Empresa: ${empresaActiva?.razon_social || ""}`, margenX, 21);
+    doc.text(`RUT: ${empresaActiva?.rut || ""}`, margenX, 26);
+    doc.text(`Periodo: ${periodo}`, anchoPagina - 55, 21);
+
+    autoTable(doc, {
+      startY: 34,
+      head: [
+        [
+          "RUT",
+          "Trabajador",
+          "Ingreso",
+          "Devengados",
+          "Usados",
+          "Usados periodo",
+          "Pendientes",
+          "Estado",
+        ],
+      ],
+      body: [
+        ...saldos.map((item) => [
+          item.rut || "",
+          nombreTrabajador(item),
+          fechaCL(item.fecha_ingreso),
+          formatoDias(item.dias_devengados),
+          formatoDias(item.dias_usados),
+          formatoDias(item.dias_usados_periodo),
+          formatoDias(item.dias_pendientes),
+          item.estado_saldo,
+        ]),
+        [
+          "TOTALES",
+          "",
+          "",
+          formatoDias(totales.dias_devengados),
+          formatoDias(totales.dias_usados),
+          formatoDias(totales.dias_usados_periodo),
+          formatoDias(totales.dias_pendientes),
+          "",
+        ],
+      ],
+      theme: "grid",
+      margin: { left: margenX, right: margenX },
+      styles: {
+        fontSize: 7,
+        cellPadding: 1.8,
+      },
+      headStyles: {
+        fillColor: [224, 242, 254],
+        textColor: [15, 76, 129],
+        fontStyle: "bold",
+      },
+      didParseCell(data) {
+        if (data.row.raw?.[0] === "TOTALES") {
+          data.cell.styles.fontStyle = "bold";
+          data.cell.styles.fillColor = [248, 250, 252];
+          data.cell.styles.textColor = [15, 76, 129];
+        }
+
+        if (data.row.raw?.[7] === "Saldo negativo") {
+          data.cell.styles.textColor = [185, 28, 28];
+          data.cell.styles.fontStyle = "bold";
+        }
+      },
+    });
+
+    const totalPaginas = doc.getNumberOfPages();
+
+    for (let i = 1; i <= totalPaginas; i++) {
+      doc.setPage(i);
+      doc.setFontSize(7);
+      doc.setTextColor(120);
+      doc.text(`Pagina ${i}/${totalPaginas}`, anchoPagina / 2, altoPagina - 7, {
+        align: "center",
+      });
+    }
+
+    doc.save(`Saldo_Vacaciones_${periodo}.pdf`);
+  }
+
+  return (
+    <div>
+      {mensaje && <p style={ok}>{mensaje}</p>}
+      {error && <p style={err}>{error}</p>}
+
+      <div style={hero}>
+        <div>
+          <h1 style={titulo}>Saldo de Vacaciones</h1>
+          <p style={subtitulo}>
+            Control de dias devengados, usados y pendientes por trabajador.
+          </p>
+        </div>
+      </div>
+
+      <div style={cardFiltros}>
+        <div>
+          <label style={label}>Periodo</label>
+          <PeriodoMesSelector
+            style={input}
+            value={periodo}
+            onChange={setPeriodo}
+            containerStyle={{ width: "100%", minWidth: 220 }}
+          />
+        </div>
+
+        <div style={{ flex: 1 }}>
+          <label style={label}>Trabajador</label>
+          <select
+            style={inputFull}
+            value={trabajadorId}
+            onChange={(e) => setTrabajadorId(e.target.value)}
+          >
+            <option value="">Todos los trabajadores</option>
+            {trabajadores.map((trabajador) => (
+              <option key={trabajador.id} value={trabajador.id}>
+                {trabajador.rut} - {trabajador.nombres} {trabajador.apellidos}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <button type="button" style={botonExcel} onClick={exportarExcel}>
+          Exportar Excel
+        </button>
+
+        <button type="button" style={botonPDF} onClick={exportarPDF}>
+          Exportar PDF
+        </button>
+
+        <button type="button" style={botonBuscar} onClick={buscarSaldos}>
+          Buscar
+        </button>
+      </div>
+
+      <div style={gridResumen}>
+        <ResumenCard
+          titulo="Dias devengados"
+          valor={formatoDias(totales.dias_devengados)}
+          icono={<IconoSistema tipo="calendario" />}
+        />
+        <ResumenCard
+          titulo="Dias usados"
+          valor={formatoDias(totales.dias_usados)}
+          icono={<IconoSistema tipo="vacaciones" />}
+        />
+        <ResumenCard
+          titulo="Usados periodo"
+          valor={formatoDias(totales.dias_usados_periodo)}
+          icono={<IconoSistema tipo="comprobante" />}
+        />
+        <ResumenCard
+          titulo="Dias pendientes"
+          valor={formatoDias(totales.dias_pendientes)}
+          icono={<IconoSistema tipo="ok" />}
+        />
+        <ResumenCard
+          titulo="Saldos negativos"
+          valor={totales.trabajadores_saldo_negativo || 0}
+          icono={<IconoSistema tipo="alerta" />}
+        />
+      </div>
+
+      <div style={cardTabla}>
+        <h2 style={tituloSeccion}>Resultado por trabajador</h2>
+
+        <div style={tablaBox}>
+          <table style={tabla}>
+            <thead>
+              <tr>
+                <th style={th}>RUT</th>
+                <th style={th}>Trabajador</th>
+                <th style={th}>Cargo</th>
+                <th style={th}>Ingreso</th>
+                <th style={thNumero}>Devengados</th>
+                <th style={thNumero}>Usados historico</th>
+                <th style={thNumero}>Usados periodo</th>
+                <th style={thNumero}>Pendientes</th>
+                <th style={th}>Estado</th>
+                <th style={th}>Accion</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {saldos.map((item) => (
+                <tr key={item.trabajador_id}>
+                  <td style={td}>{item.rut}</td>
+                  <td style={td}>{nombreTrabajador(item)}</td>
+                  <td style={td}>{item.cargo}</td>
+                  <td style={td}>{fechaCL(item.fecha_ingreso)}</td>
+                  <td style={tdNumero}>{formatoDias(item.dias_devengados)}</td>
+                  <td style={tdNumero}>{formatoDias(item.dias_usados)}</td>
+                  <td style={tdNumero}>
+                    {formatoDias(item.dias_usados_periodo)}
+                  </td>
+                  <td
+                    style={
+                      item.alerta_saldo_negativo ? tdNumeroRojo : tdNumero
+                    }
+                  >
+                    {formatoDias(item.dias_pendientes)}
+                  </td>
+                  <td style={item.alerta_saldo_negativo ? tdRojo : td}>
+                    {item.estado_saldo}
+                  </td>
+                  <td style={td}>
+                    <button
+                      type="button"
+                      style={botonMini}
+                      onClick={() => verHistorial(item)}
+                    >
+                      Ver historial
+                    </button>
+                  </td>
+                </tr>
+              ))}
+
+              {saldos.length === 0 && (
+                <tr>
+                  <td style={td} colSpan="10">
+                    No hay datos para el periodo seleccionado.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+
+            {saldos.length > 0 && (
+              <tfoot>
+                <tr>
+                  <td style={tdTotal} colSpan="4">
+                    TOTALES
+                  </td>
+                  <td style={tdTotalNumero}>
+                    {formatoDias(totales.dias_devengados)}
+                  </td>
+                  <td style={tdTotalNumero}>
+                    {formatoDias(totales.dias_usados)}
+                  </td>
+                  <td style={tdTotalNumero}>
+                    {formatoDias(totales.dias_usados_periodo)}
+                  </td>
+                  <td style={tdTotalNumero}>
+                    {formatoDias(totales.dias_pendientes)}
+                  </td>
+                  <td style={tdTotal}></td>
+                  <td style={tdTotal}></td>
+                </tr>
+              </tfoot>
+            )}
+          </table>
+        </div>
+      </div>
+
+      {detalleTrabajador && (
+        <div style={cardHistorial}>
+          <div style={historialHeader}>
+            <div>
+              <h2 style={tituloSeccion}>
+                Historial vacaciones - {detalleTrabajador.nombres}{" "}
+                {detalleTrabajador.apellidos}
+              </h2>
+              <p style={textoSuave}>
+                RUT: {detalleTrabajador.rut} | Ingreso:{" "}
+                {fechaCL(detalleTrabajador.fecha_ingreso)}
+              </p>
+            </div>
+
+            <button type="button" style={botonCerrar} onClick={cerrarHistorial}>
+              Cerrar historial
+            </button>
+          </div>
+
+          <div style={tablaBox}>
+            <table style={tabla}>
+              <thead>
+                <tr>
+                  <th style={th}>Periodo</th>
+                  <th style={th}>Tipo</th>
+                  <th style={th}>Subtipo</th>
+                  <th style={th}>Inicio</th>
+                  <th style={th}>Termino</th>
+                  <th style={thNumero}>Dias</th>
+                  <th style={th}>Observacion</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {historial.map((item) => (
+                  <tr key={item.id}>
+                    <td style={td}>{item.periodo}</td>
+                    <td style={td}>{item.tipo}</td>
+                    <td style={td}>{item.subtipo}</td>
+                    <td style={td}>{fechaCL(item.fecha_inicio)}</td>
+                    <td style={td}>{fechaCL(item.fecha_termino)}</td>
+                    <td style={tdNumero}>{formatoDias(item.dias)}</td>
+                    <td style={td}>{item.observacion}</td>
+                  </tr>
+                ))}
+
+                {historial.length === 0 && (
+                  <tr>
+                    <td style={td} colSpan="7">
+                      No hay historial de vacaciones para este trabajador.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ResumenCard({ titulo, valor, icono }) {
+  return (
+    <div style={cardResumen}>
+      <span style={resumenIcono}>{icono}</span>
+      <strong>{titulo}</strong>
+      <span>{valor}</span>
+    </div>
+  );
+}
+
+const hero = {
+  background: "linear-gradient(135deg, #0f172a, #0369a1, #0ea5e9)",
+  borderRadius: "22px",
+  padding: "28px",
+  color: "white",
+  marginBottom: "22px",
+  boxShadow: "0 12px 30px rgba(15, 23, 42, 0.18)",
+};
+
+const titulo = {
+  margin: 0,
+  fontSize: "32px",
+};
+
+const subtitulo = {
+  color: "#dff7ff",
+  marginBottom: 0,
+};
+
+const cardFiltros = {
+  background: "white",
+  borderRadius: "16px",
+  padding: "16px",
+  boxShadow: "0 14px 32px rgba(3, 105, 161, 0.12)",
+  display: "flex",
+  alignItems: "end",
+  gap: "12px",
+  flexWrap: "wrap",
+  marginBottom: "18px",
+};
+
+const label = {
+  display: "block",
+  fontWeight: "bold",
+  color: "#1e293b",
+  marginBottom: "5px",
+};
+
+const input = {
+  width: "170px",
+  padding: "10px",
+  border: "1px solid #a9d8ef",
+  borderRadius: "9px",
+  height: "40px",
+  boxSizing: "border-box",
+};
+
+const inputFull = {
+  width: "100%",
+  minWidth: "280px",
+  padding: "10px",
+  border: "1px solid #a9d8ef",
+  borderRadius: "9px",
+  height: "40px",
+  boxSizing: "border-box",
+};
+
+const botonBase = {
+  color: "white",
+  border: "none",
+  padding: "11px 18px",
+  borderRadius: "9px",
+  fontWeight: "bold",
+  cursor: "pointer",
+  height: "40px",
+};
+
+const botonExcel = {
+  ...botonBase,
+  background: "#10b981",
+};
+
+const botonPDF = {
+  ...botonBase,
+  background: "#ef4444",
+};
+
+const botonBuscar = {
+  ...botonBase,
+  background: "#0369a1",
+};
+
+const botonMini = {
+  background: "#0369a1",
+  color: "white",
+  border: "none",
+  padding: "8px 11px",
+  borderRadius: "8px",
+  fontWeight: "bold",
+  cursor: "pointer",
+};
+
+const botonCerrar = {
+  background: "#475569",
+  color: "white",
+  border: "none",
+  padding: "10px 14px",
+  borderRadius: "9px",
+  fontWeight: "bold",
+  cursor: "pointer",
+};
+
+const gridResumen = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+  gap: "14px",
+  marginBottom: "18px",
+};
+
+const cardResumen = {
+  background: "white",
+  borderRadius: "16px",
+  padding: "16px",
+  boxShadow: "0 14px 32px rgba(3, 105, 161, 0.12)",
+  display: "flex",
+  flexDirection: "column",
+  gap: "8px",
+  color: "#1e293b",
+};
+
+const resumenIcono = {
+  width: "38px",
+  height: "38px",
+  borderRadius: "13px",
+  background: "linear-gradient(135deg, #dff7ff, #ecfeff)",
+  border: "1px solid #67e8f9",
+  color: "#0369a1",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  boxShadow: "0 8px 18px rgba(15, 76, 129, 0.12)",
+};
+
+const cardTabla = {
+  background: "white",
+  borderRadius: "16px",
+  padding: "22px",
+  boxShadow: "0 14px 32px rgba(3, 105, 161, 0.12)",
+  marginBottom: "20px",
+};
+
+const cardHistorial = {
+  ...cardTabla,
+  border: "2px solid #0ea5e9",
+};
+
+const historialHeader = {
+  display: "flex",
+  justifyContent: "space-between",
+  gap: "16px",
+  flexWrap: "wrap",
+  alignItems: "start",
+};
+
+const tituloSeccion = {
+  color: "#0369a1",
+  marginTop: 0,
+};
+
+const textoSuave = {
+  color: "#475569",
+};
+
+const tablaBox = {
+  overflowX: "auto",
+};
+
+const tabla = {
+  width: "100%",
+  borderCollapse: "collapse",
+};
+
+const th = {
+  textAlign: "left",
+  padding: "10px",
+  background: "linear-gradient(135deg, #dff7ff, #ecfeff)",
+  color: "#0369a1",
+  whiteSpace: "nowrap",
+};
+
+const thNumero = {
+  ...th,
+  textAlign: "right",
+};
+
+const td = {
+  padding: "9px",
+  borderBottom: "1px solid #e2e8f0",
+  color: "#1e293b",
+};
+
+const tdNumero = {
+  ...td,
+  textAlign: "right",
+  whiteSpace: "nowrap",
+};
+
+const tdRojo = {
+  ...td,
+  color: "#b91c1c",
+  fontWeight: "bold",
+};
+
+const tdNumeroRojo = {
+  ...tdNumero,
+  color: "#b91c1c",
+  fontWeight: "bold",
+};
+
+const tdTotal = {
+  ...td,
+  fontWeight: "bold",
+  background: "#f8fcff",
+  color: "#0369a1",
+};
+
+const tdTotalNumero = {
+  ...tdTotal,
+  textAlign: "right",
+  whiteSpace: "nowrap",
+};
+
+const ok = {
+  color: "#10b981",
+  fontWeight: "bold",
+};
+
+const err = {
+  color: "#ef4444",
+  fontWeight: "bold",
+};
+

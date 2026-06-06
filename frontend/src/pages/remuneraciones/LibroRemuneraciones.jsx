@@ -1,0 +1,712 @@
+import { useEffect, useState } from "react";
+import { obtenerEmpresaActiva } from "../../services/empresaService";
+import { listarLiquidaciones } from "../../services/liquidacionesService";
+import { obtenerPeriodoTrabajo } from "../../services/periodoTrabajoService";
+import PeriodoMesSelector from "../../components/PeriodoMesSelector";
+import * as XLSX from "xlsx";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+
+export default function LibroRemuneraciones() {
+  const empresaActiva = obtenerEmpresaActiva();
+
+  const [periodo, setPeriodo] = useState(obtenerPeriodoTrabajo());
+  const [liquidaciones, setLiquidaciones] = useState([]);
+
+  const [totales, setTotales] = useState({
+    total_haberes: 0,
+    total_descuentos: 0,
+    liquido_pagar: 0,
+    costo_empresa: 0,
+    descuento_ausencias: 0,
+    dias_ausencia: 0,
+  });
+
+  const [mensaje, setMensaje] = useState("");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (empresaActiva) {
+      cargarLibro();
+    }
+  }, []);
+
+  async function cargarLibro() {
+    try {
+      setMensaje("");
+      setError("");
+
+      const data = await listarLiquidaciones(empresaActiva.id, periodo);
+
+      setLiquidaciones(data.liquidaciones || []);
+
+      setTotales(
+        data.totales || {
+          total_haberes: 0,
+          total_descuentos: 0,
+          liquido_pagar: 0,
+          costo_empresa: 0,
+          descuento_ausencias: 0,
+          dias_ausencia: 0,
+        }
+      );
+
+      setMensaje("Libro de remuneraciones actualizado correctamente.");
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  function formato(valor) {
+    return `$${Number(valor || 0).toLocaleString("es-CL")}`;
+  }
+
+  function numero(valor) {
+    return Number(valor || 0);
+  }
+
+  function nombreTrabajador(item) {
+    return `${item.nombres || ""} ${item.apellidos || ""}`.trim();
+  }
+
+  function exportarExcel() {
+    const data = [];
+
+    data.push(["LIBRO DE REMUNERACIONES"]);
+    data.push([`Empresa: ${empresaActiva?.razon_social || ""}`]);
+    data.push([`RUT: ${empresaActiva?.rut || ""}`]);
+    data.push([`Período: ${periodo}`]);
+    data.push([`Fecha emisión: ${new Date().toLocaleDateString("es-CL")}`]);
+    data.push([]);
+
+    data.push([
+      "RUT",
+      "Trabajador",
+      "Cargo",
+      "AFP",
+      "Salud",
+      "Días trabajados",
+      "Días ausencia",
+      "Sueldo base",
+      "Sueldo proporcional",
+      "Gratificación",
+      "Horas extras",
+      "Variables imponibles",
+      "Variables no imponibles",
+      "Variables descuentos",
+      "Desc. ausencias",
+      "Base imponible",
+      "Base afecta descuentos",
+      "Haberes imponibles",
+      "Haberes no imponibles",
+      "Total haberes",
+      "Descuento AFP",
+      "Descuento salud",
+      "Descuento AFC",
+      "Impuesto único",
+      "Otros descuentos",
+      "Total descuentos",
+      "Líquido a pagar",
+      "SIS empleador",
+      "AFC empleador",
+      "Mutual empleador",
+      "Costo empresa",
+      "Estado",
+    ]);
+
+    liquidaciones.forEach((item) => {
+      data.push([
+        item.rut || "",
+        nombreTrabajador(item),
+        item.cargo || "",
+        item.afp || "",
+        item.salud || "",
+        numero(item.dias_trabajados),
+        numero(item.dias_ausencia),
+        numero(item.sueldo_base),
+        numero(item.sueldo_proporcional),
+        numero(item.gratificacion),
+        numero(item.monto_horas_extras),
+        numero(item.variables_haberes_imponibles),
+        numero(item.variables_haberes_no_imponibles),
+        numero(item.variables_descuentos),
+        numero(item.descuento_ausencias),
+        numero(item.base_imponible),
+        numero(item.base_afecta_descuentos),
+        numero(item.total_haberes_imponibles),
+        numero(item.total_haberes_no_imponibles),
+        numero(item.total_haberes),
+        numero(item.descuento_afp),
+        numero(item.descuento_salud),
+        numero(item.descuento_afc),
+        numero(item.impuesto_unico),
+        numero(item.otros_descuentos),
+        numero(item.total_descuentos),
+        numero(item.liquido_pagar),
+        numero(item.aporte_sis_empleador),
+        numero(item.aporte_afc_empleador),
+        numero(item.aporte_mutual_empleador),
+        numero(item.costo_empresa),
+        item.estado || "",
+      ]);
+    });
+
+    data.push([]);
+    data.push([
+      "TOTALES",
+      "",
+      "",
+      "",
+      "",
+      "",
+      numero(totales.dias_ausencia),
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      numero(totales.descuento_ausencias),
+      "",
+      "",
+      "",
+      "",
+      numero(totales.total_haberes),
+      "",
+      "",
+      "",
+      "",
+      "",
+      numero(totales.total_descuentos),
+      numero(totales.liquido_pagar),
+      "",
+      "",
+      "",
+      numero(totales.costo_empresa),
+      "",
+    ]);
+
+    const ws = XLSX.utils.aoa_to_sheet(data);
+
+    ws["!cols"] = [
+      { wch: 14 },
+      { wch: 35 },
+      { wch: 22 },
+      { wch: 15 },
+      { wch: 15 },
+      { wch: 14 },
+      { wch: 14 },
+      { wch: 16 },
+      { wch: 20 },
+      { wch: 16 },
+      { wch: 16 },
+      { wch: 22 },
+      { wch: 24 },
+      { wch: 20 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 22 },
+      { wch: 20 },
+      { wch: 22 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 14 },
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Libro Remuneraciones");
+
+    XLSX.writeFile(wb, `Libro_Remuneraciones_${periodo}.xlsx`);
+  }
+
+  function exportarPDF() {
+    const doc = new jsPDF("l", "mm", "letter");
+
+    const colorPrimario = [10, 44, 95];
+    const colorSecundario = [226, 239, 250];
+    const colorTexto = [40, 40, 40];
+
+    const margenX = 10;
+    const anchoPagina = doc.internal.pageSize.getWidth();
+    const altoPagina = doc.internal.pageSize.getHeight();
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(...colorTexto);
+
+    doc.text(`Razón Social: ${empresaActiva?.razon_social || ""}`, margenX, 12);
+    doc.text(`RUT: ${empresaActiva?.rut || ""}`, margenX, 17);
+
+    doc.text(`Período: ${periodo}`, anchoPagina - 60, 12);
+    doc.text(
+      `Fecha emisión: ${new Date().toLocaleDateString("es-CL")}`,
+      anchoPagina - 60,
+      17
+    );
+
+    doc.setFontSize(15);
+    doc.setTextColor(...colorPrimario);
+    doc.text("Libro de Remuneraciones", anchoPagina / 2, 28, {
+      align: "center",
+    });
+
+    doc.setDrawColor(...colorPrimario);
+    doc.line(margenX, 32, anchoPagina - margenX, 32);
+
+    autoTable(doc, {
+      startY: 38,
+      head: [
+        [
+          "RUT",
+          "Trabajador",
+          "Cargo",
+          "Días",
+          "Aus.",
+          "Desc. Aus.",
+          "Haberes",
+          "Descuentos",
+          "Líquido",
+          "Costo Empresa",
+          "Estado",
+        ],
+      ],
+      body: [
+        ...liquidaciones.map((item) => [
+          item.rut || "",
+          nombreTrabajador(item),
+          item.cargo || "",
+          numero(item.dias_trabajados).toLocaleString("es-CL"),
+          numero(item.dias_ausencia).toLocaleString("es-CL"),
+          numero(item.descuento_ausencias).toLocaleString("es-CL"),
+          numero(item.total_haberes).toLocaleString("es-CL"),
+          numero(item.total_descuentos).toLocaleString("es-CL"),
+          numero(item.liquido_pagar).toLocaleString("es-CL"),
+          numero(item.costo_empresa).toLocaleString("es-CL"),
+          item.estado || "",
+        ]),
+        [
+          "TOTAL",
+          "",
+          "",
+          "",
+          numero(totales.dias_ausencia).toLocaleString("es-CL"),
+          numero(totales.descuento_ausencias).toLocaleString("es-CL"),
+          numero(totales.total_haberes).toLocaleString("es-CL"),
+          numero(totales.total_descuentos).toLocaleString("es-CL"),
+          numero(totales.liquido_pagar).toLocaleString("es-CL"),
+          numero(totales.costo_empresa).toLocaleString("es-CL"),
+          "",
+        ],
+      ],
+      theme: "grid",
+      margin: { left: margenX, right: margenX },
+      styles: {
+        fontSize: 6.8,
+        cellPadding: 1.6,
+        textColor: colorTexto,
+      },
+      headStyles: {
+        fillColor: colorSecundario,
+        textColor: colorPrimario,
+        fontStyle: "bold",
+      },
+      columnStyles: {
+        0: { cellWidth: 22 },
+        1: { cellWidth: 48 },
+        2: { cellWidth: 32 },
+        3: { cellWidth: 12, halign: "right" },
+        4: { cellWidth: 12, halign: "right" },
+        5: { cellWidth: 24, halign: "right" },
+        6: { cellWidth: 26, halign: "right" },
+        7: { cellWidth: 26, halign: "right" },
+        8: { cellWidth: 26, halign: "right" },
+        9: { cellWidth: 28, halign: "right" },
+        10: { cellWidth: 18 },
+      },
+      didParseCell: function (data) {
+        if (data.row.raw?.[0] === "TOTAL") {
+          data.cell.styles.fontStyle = "bold";
+          data.cell.styles.fillColor = [245, 247, 250];
+          data.cell.styles.textColor = colorPrimario;
+        }
+      },
+    });
+
+    let y = doc.lastAutoTable.finalY + 10;
+
+    if (y < altoPagina - 45) {
+      doc.setFontSize(10);
+      doc.setTextColor(...colorPrimario);
+      doc.text("Resumen del período", margenX, y);
+
+      y += 5;
+
+      autoTable(doc, {
+        startY: y,
+        head: [["Concepto", "Monto"]],
+        body: [
+          [
+            "Total haberes",
+            numero(totales.total_haberes).toLocaleString("es-CL"),
+          ],
+          [
+            "Total descuentos",
+            numero(totales.total_descuentos).toLocaleString("es-CL"),
+          ],
+          [
+            "Descuento ausencias",
+            numero(totales.descuento_ausencias).toLocaleString("es-CL"),
+          ],
+          [
+            "Líquido a pagar",
+            numero(totales.liquido_pagar).toLocaleString("es-CL"),
+          ],
+          [
+            "Costo empresa",
+            numero(totales.costo_empresa).toLocaleString("es-CL"),
+          ],
+        ],
+        theme: "grid",
+        margin: { left: margenX, right: anchoPagina - 120 },
+        styles: {
+          fontSize: 8,
+          cellPadding: 2,
+          textColor: colorTexto,
+        },
+        headStyles: {
+          fillColor: colorSecundario,
+          textColor: colorPrimario,
+          fontStyle: "bold",
+        },
+        columnStyles: {
+          1: { halign: "right" },
+        },
+      });
+    }
+
+    const totalPaginas = doc.getNumberOfPages();
+
+    for (let i = 1; i <= totalPaginas; i++) {
+      doc.setPage(i);
+      doc.setFontSize(7);
+      doc.setTextColor(120);
+      doc.text(`Página ${i}/${totalPaginas}`, anchoPagina / 2, altoPagina - 7, {
+        align: "center",
+      });
+    }
+
+    doc.save(`Libro_Remuneraciones_${periodo}.pdf`);
+  }
+
+  return (
+    <div>
+      {mensaje && <p style={ok}>{mensaje}</p>}
+      {error && <p style={err}>{error}</p>}
+
+      <div style={card}>
+        <h2 style={tituloSeccion}>Libro de Remuneraciones</h2>
+
+        <div style={filtros}>
+          <div>
+            <label style={label}>Período</label>
+            <PeriodoMesSelector style={input} value={periodo} onChange={setPeriodo} />
+          </div>
+
+          <button style={botonBuscar} onClick={cargarLibro}>
+            Buscar
+          </button>
+
+          <button style={botonExcel} onClick={exportarExcel}>
+            Exportar Excel
+          </button>
+
+          <button style={botonPDF} onClick={exportarPDF}>
+            Exportar PDF
+          </button>
+        </div>
+      </div>
+
+      <div style={gridResumen}>
+        <div style={cardResumen}>
+          <strong>Total haberes</strong>
+          <span>{formato(totales.total_haberes)}</span>
+        </div>
+
+        <div style={cardResumen}>
+          <strong>Total descuentos</strong>
+          <span>{formato(totales.total_descuentos)}</span>
+        </div>
+
+        <div style={cardResumen}>
+          <strong>Desc. ausencias</strong>
+          <span>{formato(totales.descuento_ausencias)}</span>
+        </div>
+
+        <div style={cardResumenVerde}>
+          <strong>Líquido a pagar</strong>
+          <span>{formato(totales.liquido_pagar)}</span>
+        </div>
+
+        <div style={cardResumen}>
+          <strong>Costo empresa</strong>
+          <span>{formato(totales.costo_empresa)}</span>
+        </div>
+      </div>
+
+      <div style={card}>
+        <h2 style={tituloSeccion}>Detalle mensual</h2>
+
+        <div style={alerta}>
+          Este libro muestra las liquidaciones emitidas del período. El descuento
+          por ausencias ya viene incorporado dentro de total descuentos.
+        </div>
+
+        <div style={tablaBox}>
+          <table style={tabla}>
+            <thead>
+              <tr>
+                <th style={th}>RUT</th>
+                <th style={th}>Trabajador</th>
+                <th style={th}>Cargo</th>
+                <th style={th}>AFP</th>
+                <th style={th}>Salud</th>
+                <th style={thNumero}>Días</th>
+                <th style={thNumero}>Días ausencia</th>
+                <th style={thNumero}>Var. imponibles</th>
+                <th style={thNumero}>Var. no imponibles</th>
+                <th style={thNumero}>Var. descuentos</th>
+                <th style={thNumero}>Desc. ausencias</th>
+                <th style={thNumero}>Haberes</th>
+                <th style={thNumero}>Descuentos</th>
+                <th style={thNumero}>Líquido</th>
+                <th style={thNumero}>Costo empresa</th>
+                <th style={th}>Estado</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {liquidaciones.map((item) => (
+                <tr key={item.id}>
+                  <td style={td}>{item.rut}</td>
+                  <td style={td}>{nombreTrabajador(item)}</td>
+                  <td style={td}>{item.cargo}</td>
+                  <td style={td}>{item.afp}</td>
+                  <td style={td}>{item.salud}</td>
+                  <td style={tdNumero}>{numero(item.dias_trabajados)}</td>
+                  <td style={tdNumero}>{numero(item.dias_ausencia)}</td>
+                  <td style={tdNumero}>
+                    {formato(item.variables_haberes_imponibles)}
+                  </td>
+                  <td style={tdNumero}>
+                    {formato(item.variables_haberes_no_imponibles)}
+                  </td>
+                  <td style={tdNumero}>{formato(item.variables_descuentos)}</td>
+                  <td style={tdNumero}>{formato(item.descuento_ausencias)}</td>
+                  <td style={tdNumero}>{formato(item.total_haberes)}</td>
+                  <td style={tdNumero}>{formato(item.total_descuentos)}</td>
+                  <td style={tdNumero}>{formato(item.liquido_pagar)}</td>
+                  <td style={tdNumero}>{formato(item.costo_empresa)}</td>
+                  <td style={td}>{item.estado}</td>
+                </tr>
+              ))}
+
+              {liquidaciones.length === 0 && (
+                <tr>
+                  <td style={td} colSpan="16">
+                    No hay liquidaciones emitidas para este período.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+
+            {liquidaciones.length > 0 && (
+              <tfoot>
+                <tr>
+                  <td style={tdTotal} colSpan="6">
+                    TOTALES
+                  </td>
+                  <td style={tdTotalNumero}>{totales.dias_ausencia}</td>
+                  <td style={tdTotal}></td>
+                  <td style={tdTotal}></td>
+                  <td style={tdTotal}></td>
+                  <td style={tdTotalNumero}>
+                    {formato(totales.descuento_ausencias)}
+                  </td>
+                  <td style={tdTotalNumero}>{formato(totales.total_haberes)}</td>
+                  <td style={tdTotalNumero}>
+                    {formato(totales.total_descuentos)}
+                  </td>
+                  <td style={tdTotalNumero}>{formato(totales.liquido_pagar)}</td>
+                  <td style={tdTotalNumero}>{formato(totales.costo_empresa)}</td>
+                  <td style={tdTotal}></td>
+                </tr>
+              </tfoot>
+            )}
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const card = {
+  background: "white",
+  borderRadius: "18px",
+  padding: "22px",
+  boxShadow: "0 14px 32px rgba(3, 105, 161, 0.12)",
+  marginBottom: "20px",
+};
+
+const tituloSeccion = {
+  color: "#0369a1",
+  marginTop: 0,
+};
+
+const filtros = {
+  display: "flex",
+  alignItems: "end",
+  gap: "12px",
+  flexWrap: "wrap",
+};
+
+const label = {
+  display: "block",
+  fontWeight: "bold",
+  color: "#1e293b",
+  marginBottom: "5px",
+};
+
+const input = {
+  width: "170px",
+  padding: "10px",
+  border: "1px solid #a9d8ef",
+  borderRadius: "10px",
+  height: "40px",
+  boxSizing: "border-box",
+};
+
+const botonBase = {
+  color: "white",
+  border: "none",
+  padding: "10px 16px",
+  borderRadius: "10px",
+  fontWeight: "bold",
+  cursor: "pointer",
+  height: "40px",
+};
+
+const botonBuscar = {
+  ...botonBase,
+  background: "#0369a1",
+};
+
+const botonExcel = {
+  ...botonBase,
+  background: "#10b981",
+};
+
+const botonPDF = {
+  ...botonBase,
+  background: "#ef4444",
+};
+
+const gridResumen = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+  gap: "14px",
+  marginBottom: "20px",
+};
+
+const cardResumen = {
+  background: "white",
+  borderRadius: "16px",
+  padding: "16px",
+  boxShadow: "0 14px 32px rgba(3, 105, 161, 0.12)",
+  display: "flex",
+  flexDirection: "column",
+  gap: "8px",
+  color: "#1e293b",
+};
+
+const cardResumenVerde = {
+  ...cardResumen,
+  border: "1px solid #22c55e",
+};
+
+const alerta = {
+  background: "#fff7ed",
+  border: "1px solid #fed7aa",
+  color: "#9a3412",
+  padding: "12px",
+  borderRadius: "12px",
+  marginBottom: "16px",
+  fontWeight: "bold",
+};
+
+const tablaBox = {
+  overflowX: "auto",
+};
+
+const tabla = {
+  width: "100%",
+  borderCollapse: "collapse",
+};
+
+const th = {
+  textAlign: "left",
+  padding: "10px",
+  background: "linear-gradient(135deg, #dff7ff, #ecfeff)",
+  color: "#0369a1",
+  whiteSpace: "nowrap",
+};
+
+const thNumero = {
+  ...th,
+  textAlign: "right",
+};
+
+const td = {
+  padding: "9px",
+  borderBottom: "1px solid #e2e8f0",
+  color: "#1e293b",
+};
+
+const tdNumero = {
+  ...td,
+  textAlign: "right",
+  whiteSpace: "nowrap",
+};
+
+const tdTotal = {
+  ...td,
+  fontWeight: "bold",
+  background: "#f8fcff",
+  color: "#0369a1",
+};
+
+const tdTotalNumero = {
+  ...tdTotal,
+  textAlign: "right",
+  whiteSpace: "nowrap",
+};
+
+const ok = {
+  color: "#10b981",
+  fontWeight: "bold",
+};
+
+const err = {
+  color: "#ef4444",
+  fontWeight: "bold",
+};

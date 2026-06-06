@@ -1,0 +1,18 @@
+{
+  "name": "servcontable-pro",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Sistema contable y remuneraciones ServContable PRO.",
+  "scripts": {
+    "install:all": "npm --prefix backend install && npm --prefix frontend install",
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "dev:frontend:demo": "npm --prefix frontend run dev:demo",
+    "build": "npm --prefix frontend run build",
+    "build:demo": "npm --prefix frontend run build:demo",
+    "start:backend": "npm --prefix backend start"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
