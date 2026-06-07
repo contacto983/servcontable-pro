@@ -1,25 +1,51 @@
 import { API_BASE_URL } from "./apiConfig";
 
 function obtenerToken() {
-  return (
-    localStorage.getItem("token") ||
-    localStorage.getItem("authToken") ||
-    localStorage.getItem("servcontable_token") ||
-    ""
-  );
+  try {
+    const usuarioSession = sessionStorage.getItem("usuario");
+
+    if (usuarioSession) {
+      const usuario = JSON.parse(usuarioSession);
+
+      if (usuario?.token) {
+        return usuario.token;
+      }
+    }
+  } catch {
+    // Ignorar error de lectura
+  }
+
+  try {
+    const usuarioLocal = localStorage.getItem("usuario");
+
+    if (usuarioLocal) {
+      const usuario = JSON.parse(usuarioLocal);
+
+      if (usuario?.token) {
+        return usuario.token;
+      }
+    }
+  } catch {
+    // Ignorar error de lectura
+  }
+
+  return "";
 }
 
 function headersJson() {
   const token = obtenerToken();
 
+  console.log("TOKEN SOLICITUDES WEB:", token ? "ENCONTRADO" : "NO ENCONTRADO");
+
   return {
     "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    Authorization: `Bearer ${token}`,
   };
 }
 
 export async function listarSolicitudesContacto() {
   const respuesta = await fetch(`${API_BASE_URL}/contacto`, {
+    method: "GET",
     headers: headersJson(),
   });
 
