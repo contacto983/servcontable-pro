@@ -4,6 +4,7 @@ const { obtenerOrigenesCors } = require("./config/env");
 
 const estadoRoutes = require("./routes/estado.routes");
 const authRoutes = require("./routes/auth.routes");
+const contactoRoutes = require("./routes/contacto.routes");
 const empresasRoutes = require("./routes/empresas.routes");
 const cuentasRoutes = require("./routes/cuentas.routes");
 const comprobantesRoutes = require("./routes/comprobantes.routes");
@@ -63,6 +64,7 @@ app.use(express.json());
 app.use("/", estadoRoutes);
 app.use("/api", estadoRoutes);
 app.use("/api/auth", authRoutes);
+app.use("/api/contacto", contactoRoutes);
 app.use("/api/empresas", empresasRoutes);
 app.use("/api/cuentas", cuentasRoutes);
 app.use("/api/comprobantes", comprobantesRoutes);
