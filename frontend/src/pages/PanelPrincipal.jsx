@@ -173,6 +173,11 @@ function puedeGestionarUsuarios(rol = "") {
   return ROLES_ADMIN_SISTEMA.includes(rolActual) || ROLES_ADMIN_CLIENTE.includes(rolActual);
 }
 
+function esAdministradorSistema(rol = "") {
+  const rolActual = rolNormalizado(rol);
+  return ROLES_ADMIN_SISTEMA.includes(rolActual);
+}
+
 export default function PanelPrincipal({
   usuario,
   moduloActivo,
@@ -198,6 +203,8 @@ export default function PanelPrincipal({
       : HEROES_CONTABLE[vistaActiva];
   const vistasConHeroPropio = ["remConfiguracion"];
   const mostrarHeroPanel = Boolean(heroActual) && !vistasConHeroPropio.includes(vistaActiva);
+  const usuarioEsAdminSistema =
+  !esUsuarioDemo && esAdministradorSistema(usuario?.rol);
 
   function irVista(vista) {
     setVistaActiva(vista);
@@ -363,9 +370,11 @@ export default function PanelPrincipal({
           })}
 
           <div style={accionesMenu}>
-            <button style={botonCambiar} onClick={abrirSolicitudesWeb}>
-              Solicitudes Web
-            </button>
+            {usuarioEsAdminSistema && (
+              <button style={botonCambiar} onClick={abrirSolicitudesWeb}>
+                Solicitudes Web
+              </button>
+            )}
             <button style={botonCambiar} onClick={cambiarEmpresa}>Cambiar empresa</button>
             {typeof cambiarEjercicio === "function" && (
               <button style={botonCambiar} onClick={cambiarEjercicio}>Cambiar año</button>
