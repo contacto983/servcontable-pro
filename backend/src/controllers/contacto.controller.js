@@ -78,7 +78,11 @@ async function crearSolicitudContacto(req, res) {
     const solicitud = resultado.rows[0];
 
     try {
-      await enviarCorreoSolicitudContacto(solicitud);
+      console.log("Intentando enviar correo de solicitud web:", solicitud.id);
+
+      const resultadoCorreo = await enviarCorreoSolicitudContacto(solicitud);
+
+      console.log("Resultado envio correo solicitud web:", resultadoCorreo);
     } catch (errorCorreo) {
       console.error("Solicitud guardada, pero no se pudo enviar correo:", errorCorreo);
     }
