@@ -1,35 +1,52 @@
 import { API_BASE_URL } from "./apiConfig";
 
-function obtenerToken() {
-  try {
-    const usuarioSession = sessionStorage.getItem("usuario");
+function buscarTokenEnValor(valor) {
+  if (!valor) return "";
 
-    if (usuarioSession) {
-      const usuario = JSON.parse(usuarioSession);
-
-      if (usuario?.token) {
-        return usuario.token;
-      }
-    }
-  } catch {
-    // Ignorar error de lectura
+  if (typeof valor === "string") {
+    // Detecta tokens JWT típicos: eyJxxxx.yyyy.zzzz
+    const encontrado = valor.match(/eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/);
+    return encontrado ? encontrado[0] : "";
   }
 
-  try {
-    const usuarioLocal = localStorage.getItem("usuario");
-
-    if (usuarioLocal) {
-      const usuario = JSON.parse(usuarioLocal);
-
-      if (usuario?.token) {
-        return usuario.token;
-      }
+  if (typeof valor === "object") {
+    for (const clave of Object.keys(valor)) {
+      const encontrado = buscarTokenEnValor(valor[clave]);
+      if (encontrado) return encontrado;
     }
-  } catch {
-    // Ignorar error de lectura
   }
 
   return "";
+}
+
+function buscarTokenEnStorage(storage) {
+  for (let i = 0; i < storage.length; i += 1) {
+    const clave = storage.key(i);
+    const valor = storage.getItem(clave);
+
+    if (!valor) continue;
+
+    const tokenDirecto = buscarTokenEnValor(valor);
+    if (tokenDirecto) return tokenDirecto;
+
+    try {
+      const json = JSON.parse(valor);
+      const tokenJson = buscarTokenEnValor(json);
+      if (tokenJson) return tokenJson;
+    } catch {
+      // Ignorar valores que no son JSON
+    }
+  }
+
+  return "";
+}
+
+function obtenerToken() {
+  return (
+    buscarTokenEnStorage(sessionStorage) ||
+    buscarTokenEnStorage(localStorage) ||
+    ""
+  );
 }
 
 function headersJson() {
@@ -39,7 +56,7 @@ function headersJson() {
 
   return {
     "Content-Type": "application/json",
-    Authorization: `Bearer ${token}`,
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
 }
 
