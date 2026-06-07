@@ -1,8 +1,18 @@
 const express = require("express");
-const { crearSolicitudContacto } = require("../controllers/contacto.controller");
+const {
+  crearSolicitudContacto,
+  listarSolicitudesContacto,
+  actualizarSolicitudContacto,
+} = require("../controllers/contacto.controller");
+
+const { verificarToken } = require("../middleware/auth.middleware");
 
 const router = express.Router();
 
 router.post("/", crearSolicitudContacto);
+
+router.get("/", verificarToken, listarSolicitudesContacto);
+
+router.patch("/:id", verificarToken, actualizarSolicitudContacto);
 
 module.exports = router;

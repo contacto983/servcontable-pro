@@ -5,6 +5,8 @@ import PanelPrincipal from "./pages/PanelPrincipal";
 import SelectorModulo from "./pages/SelectorModulo";
 import SelectorEmpresaModulo from "./pages/SelectorEmpresaModulo";
 import SelectorEjercicio from "./pages/SelectorEjercicio";
+import SolicitudesWeb from "./pages/SolicitudesWeb";
+
 import {
   cerrarSesion,
   limpiarContextoSesion,
@@ -118,6 +120,10 @@ function App() {
     setVista("selectorEjercicio");
   }
 
+  function abrirSolicitudesWeb() {
+    setVista("solicitudesWeb");
+  }
+
   function cerrarSesionVisual() {
     cerrarSesion();
 
@@ -178,6 +184,14 @@ function App() {
     );
   }
 
+  if (vista === "solicitudesWeb") {
+    return (
+      <SolicitudesWeb
+        volverAlPanel={() => setVista("panel")}
+      />
+    );
+  }
+
   return (
     <PanelPrincipal
       usuario={usuario}
@@ -188,6 +202,7 @@ function App() {
       cambiarEjercicio={cambiarEjercicio}
       volverASeleccionModulo={volverASeleccionModulo}
       alCerrarSesion={cerrarSesionVisual}
+      abrirSolicitudesWeb={abrirSolicitudesWeb}
     />
   );
 }

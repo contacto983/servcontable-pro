@@ -1,4 +1,5 @@
 const pool = require("../database/db");
+const { enviarCorreoSolicitudContacto } = require("../helpers/mail.helper");
 
 async function asegurarTablaContacto() {
   await pool.query(`
@@ -13,6 +14,21 @@ async function asegurarTablaContacto() {
       origen VARCHAR(100) DEFAULT 'web',
       creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
+  `);
+
+  await pool.query(`
+    ALTER TABLE solicitudes_contacto
+    ADD COLUMN IF NOT EXISTS leido BOOLEAN DEFAULT false;
+  `);
+
+  await pool.query(`
+    ALTER TABLE solicitudes_contacto
+    ADD COLUMN IF NOT EXISTS actualizado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+  `);
+
+  await pool.query(`
+    ALTER TABLE solicitudes_contacto
+    ADD COLUMN IF NOT EXISTS nota_interna TEXT;
   `);
 }
 
@@ -54,15 +70,23 @@ async function crearSolicitudContacto(req, res) {
       INSERT INTO solicitudes_contacto
       (nombre, correo, empresa, interes, mensaje, origen)
       VALUES ($1, $2, $3, $4, $5, $6)
-      RETURNING id, creado_en;
+      RETURNING id, nombre, correo, empresa, interes, mensaje, estado, origen, creado_en;
       `,
       [nombre, correo, empresa, interes, mensaje, "web"]
     );
 
+    const solicitud = resultado.rows[0];
+
+    try {
+      await enviarCorreoSolicitudContacto(solicitud);
+    } catch (errorCorreo) {
+      console.error("Solicitud guardada, pero no se pudo enviar correo:", errorCorreo);
+    }
+
     return res.status(201).json({
       ok: true,
       mensaje: "Solicitud enviada correctamente.",
-      solicitud: resultado.rows[0],
+      solicitud,
     });
   } catch (error) {
     console.error("Error al crear solicitud de contacto:", error);
@@ -74,6 +98,95 @@ async function crearSolicitudContacto(req, res) {
   }
 }
 
+async function listarSolicitudesContacto(req, res) {
+  try {
+    await asegurarTablaContacto();
+
+    const limite = Math.min(Number(req.query.limite || 50), 200);
+
+    const resultado = await pool.query(
+      `
+      SELECT
+        id,
+        nombre,
+        correo,
+        empresa,
+        interes,
+        mensaje,
+        estado,
+        leido,
+        nota_interna,
+        origen,
+        creado_en,
+        actualizado_en
+      FROM solicitudes_contacto
+      ORDER BY creado_en DESC
+      LIMIT $1;
+      `,
+      [limite]
+    );
+
+    return res.json({
+      ok: true,
+      solicitudes: resultado.rows,
+    });
+  } catch (error) {
+    console.error("Error al listar solicitudes de contacto:", error);
+
+    return res.status(500).json({
+      ok: false,
+      error: "No se pudieron obtener las solicitudes.",
+    });
+  }
+}
+
+async function actualizarSolicitudContacto(req, res) {
+  try {
+    await asegurarTablaContacto();
+
+    const { id } = req.params;
+
+    const estado = limpiarTexto(req.body.estado || "contactado");
+    const notaInterna = limpiarTexto(req.body.nota_interna || req.body.notaInterna);
+
+    const resultado = await pool.query(
+      `
+      UPDATE solicitudes_contacto
+      SET
+        estado = $1,
+        leido = true,
+        nota_interna = COALESCE(NULLIF($2, ''), nota_interna),
+        actualizado_en = CURRENT_TIMESTAMP
+      WHERE id = $3
+      RETURNING *;
+      `,
+      [estado, notaInterna, id]
+    );
+
+    if (resultado.rowCount === 0) {
+      return res.status(404).json({
+        ok: false,
+        error: "Solicitud no encontrada.",
+      });
+    }
+
+    return res.json({
+      ok: true,
+      mensaje: "Solicitud actualizada correctamente.",
+      solicitud: resultado.rows[0],
+    });
+  } catch (error) {
+    console.error("Error al actualizar solicitud de contacto:", error);
+
+    return res.status(500).json({
+      ok: false,
+      error: "No se pudo actualizar la solicitud.",
+    });
+  }
+}
+
 module.exports = {
   crearSolicitudContacto,
+  listarSolicitudesContacto,
+  actualizarSolicitudContacto,
 };

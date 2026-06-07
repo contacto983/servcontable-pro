@@ -182,6 +182,7 @@ export default function PanelPrincipal({
   cambiarEjercicio,
   volverASeleccionModulo,
   alCerrarSesion,
+  abrirSolicitudesWeb,
 }) {
   const [vistaActiva, setVistaActiva] = useState(
     moduloActivo === "remuneraciones" ? "remuneraciones" : "inicio"
@@ -362,6 +363,9 @@ export default function PanelPrincipal({
           })}
 
           <div style={accionesMenu}>
+            <button style={botonCambiar} onClick={abrirSolicitudesWeb}>
+              Solicitudes Web
+            </button>
             <button style={botonCambiar} onClick={cambiarEmpresa}>Cambiar empresa</button>
             {typeof cambiarEjercicio === "function" && (
               <button style={botonCambiar} onClick={cambiarEjercicio}>Cambiar año</button>
