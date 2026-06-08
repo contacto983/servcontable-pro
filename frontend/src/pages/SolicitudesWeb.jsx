@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import {
   listarSolicitudesContacto,
   actualizarSolicitudContacto,
@@ -34,6 +34,10 @@ export default function SolicitudesWeb({ volverAlPanel }) {
     }
   }
 
+  function formatoFecha(fecha) {
+    return fecha ? new Date(fecha).toLocaleString("es-CL") : "";
+  }
+
   useEffect(() => {
     cargarSolicitudes();
   }, []);
@@ -48,7 +52,7 @@ export default function SolicitudesWeb({ volverAlPanel }) {
           </p>
         </div>
 
-        <div style={{ display: "flex", gap: "10px" }}>
+        <div style={accionesCabecera}>
           <button style={botonActualizar} onClick={cargarSolicitudes}>
             Actualizar
           </button>
@@ -67,201 +71,255 @@ export default function SolicitudesWeb({ volverAlPanel }) {
         <div style={mensaje}>No hay solicitudes web registradas.</div>
       )}
 
-      <div style={grid}>
-        {solicitudes.map((solicitud) => (
-          <article key={solicitud.id} style={card}>
-            <div style={cardTop}>
-              <div>
-                <h2 style={nombre}>{solicitud.nombre}</h2>
-                <p style={correo}>{solicitud.correo}</p>
-              </div>
+      {!cargando && !error && solicitudes.length > 0 && (
+        <div style={listaPanel}>
+          <table style={tabla}>
+            <thead>
+              <tr>
+                <th style={th}>Estado</th>
+                <th style={th}>Nombre</th>
+                <th style={th}>Correo</th>
+                <th style={th}>Empresa</th>
+                <th style={th}>Interes</th>
+                <th style={th}>Mensaje</th>
+                <th style={th}>Fecha</th>
+                <th style={thAccion}>Accion</th>
+              </tr>
+            </thead>
+            <tbody>
+              {solicitudes.map((solicitud) => (
+                <tr key={solicitud.id} style={tr}>
+                  <td style={tdEstado}>
+                    <span
+                      style={{
+                        ...badge,
+                        background:
+                          solicitud.estado === "contactado" ? "#dcfce7" : "#fef3c7",
+                        color:
+                          solicitud.estado === "contactado" ? "#166534" : "#92400e",
+                      }}
+                    >
+                      {solicitud.estado || "pendiente"}
+                    </span>
+                  </td>
+                  <td style={tdNombre}>{solicitud.nombre || "-"}</td>
+                  <td style={tdCorreo}>
+                    <a href={`mailto:${solicitud.correo}`} style={linkCorreo}>
+                      {solicitud.correo || "-"}
+                    </a>
+                  </td>
+                  <td style={td}>{solicitud.empresa || "-"}</td>
+                  <td style={td}>{solicitud.interes || "-"}</td>
+                  <td style={tdMensaje} title={solicitud.mensaje || "Sin mensaje."}>
+                    {solicitud.mensaje || "Sin mensaje."}
+                  </td>
+                  <td style={tdFecha}>{formatoFecha(solicitud.creado_en)}</td>
+                  <td style={tdAccion}>
+                    <a href={`mailto:${solicitud.correo}`} style={botonSecundario}>
+                      Correo
+                    </a>
 
-              <span
-                style={{
-                  ...badge,
-                  background:
-                    solicitud.estado === "contactado" ? "#dcfce7" : "#fef3c7",
-                  color:
-                    solicitud.estado === "contactado" ? "#166534" : "#92400e",
-                }}
-              >
-                {solicitud.estado || "pendiente"}
-              </span>
-            </div>
-
-            <div style={detalle}>
-              <strong>Empresa:</strong> {solicitud.empresa || "-"}
-            </div>
-
-            <div style={detalle}>
-              <strong>Interés:</strong> {solicitud.interes || "-"}
-            </div>
-
-            <div style={mensajeCliente}>
-              {solicitud.mensaje || "Sin mensaje."}
-            </div>
-
-            <div style={fecha}>
-              {solicitud.creado_en
-                ? new Date(solicitud.creado_en).toLocaleString("es-CL")
-                : ""}
-            </div>
-
-            <div style={acciones}>
-              <a href={`mailto:${solicitud.correo}`} style={botonSecundario}>
-                Responder correo
-              </a>
-
-              {solicitud.estado !== "contactado" && (
-                <button
-                  style={botonPrincipal}
-                  onClick={() => marcarContactado(solicitud.id)}
-                >
-                  Marcar contactado
-                </button>
-              )}
-            </div>
-          </article>
-        ))}
-      </div>
+                    {solicitud.estado !== "contactado" && (
+                      <button
+                        style={botonPrincipal}
+                        onClick={() => marcarContactado(solicitud.id)}
+                      >
+                        Contactado
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
 
 const contenedor = {
-  padding: "32px",
+  padding: "14px 18px",
   color: "#0f2742",
 };
 
 const cabecera = {
   display: "flex",
   justifyContent: "space-between",
-  alignItems: "center",
-  gap: "16px",
-  marginBottom: "24px",
+  alignItems: "flex-start",
+  gap: "12px",
+  marginBottom: "12px",
+};
+
+const accionesCabecera = {
+  display: "flex",
+  gap: "8px",
+  flexWrap: "wrap",
+  justifyContent: "flex-end",
 };
 
 const titulo = {
   margin: 0,
-  fontSize: "30px",
+  fontSize: "23px",
+  lineHeight: 1,
   fontWeight: 900,
 };
 
 const subtitulo = {
-  margin: "8px 0 0",
+  margin: "5px 0 0",
   color: "#64748b",
+  fontSize: "12px",
 };
 
 const botonActualizar = {
   border: "none",
-  borderRadius: "12px",
-  padding: "12px 18px",
-  background: "#0f5c99",
+  borderRadius: "10px",
+  padding: "8px 13px",
+  background: "linear-gradient(135deg, #0f5c99, #0891b2)",
   color: "white",
+  fontSize: "12px",
   fontWeight: 800,
   cursor: "pointer",
+  minHeight: "34px",
 };
 
-const grid = {
-  display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
-  gap: "18px",
-};
-
-const card = {
+const listaPanel = {
+  overflowX: "auto",
   background: "white",
   border: "1px solid #dbeafe",
-  borderRadius: "18px",
-  padding: "20px",
-  boxShadow: "0 10px 30px rgba(15, 92, 153, 0.08)",
+  borderRadius: "14px",
+  boxShadow: "0 8px 22px rgba(15, 92, 153, 0.07)",
 };
 
-const cardTop = {
-  display: "flex",
-  justifyContent: "space-between",
-  gap: "12px",
-  alignItems: "flex-start",
+const tabla = {
+  width: "100%",
+  borderCollapse: "collapse",
+  tableLayout: "fixed",
+  minWidth: "1120px",
 };
 
-const nombre = {
-  margin: 0,
-  fontSize: "20px",
-  fontWeight: 900,
-};
-
-const correo = {
-  margin: "6px 0 0",
-  color: "#0f5c99",
-  fontWeight: 700,
-};
-
-const badge = {
-  borderRadius: "999px",
-  padding: "6px 10px",
+const th = {
+  padding: "9px 10px",
+  background: "#dff3ff",
+  color: "#075985",
   fontSize: "12px",
   fontWeight: 900,
-  textTransform: "uppercase",
+  textAlign: "left",
+  whiteSpace: "nowrap",
 };
 
-const detalle = {
-  marginTop: "14px",
-  color: "#1e293b",
+const thAccion = {
+  ...th,
+  textAlign: "center",
 };
 
-const mensajeCliente = {
-  marginTop: "14px",
-  padding: "14px",
-  borderRadius: "12px",
-  background: "#f8fafc",
-  color: "#334155",
-  lineHeight: 1.5,
+const tr = {
+  borderBottom: "1px solid #e2e8f0",
 };
 
-const fecha = {
-  marginTop: "12px",
-  fontSize: "13px",
+const td = {
+  padding: "8px 10px",
+  fontSize: "12px",
+  lineHeight: 1.25,
+  color: "#0f2742",
+  verticalAlign: "middle",
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
+};
+
+const tdEstado = {
+  ...td,
+  width: "105px",
+};
+
+const tdNombre = {
+  ...td,
+  width: "150px",
+  fontWeight: 900,
+  color: "#082f49",
+};
+
+const tdCorreo = {
+  ...td,
+  width: "220px",
+};
+
+const tdMensaje = {
+  ...td,
+  width: "280px",
+};
+
+const tdFecha = {
+  ...td,
+  width: "155px",
   color: "#64748b",
 };
 
-const acciones = {
-  display: "flex",
-  gap: "10px",
-  flexWrap: "wrap",
-  marginTop: "16px",
+const tdAccion = {
+  ...td,
+  width: "175px",
+  textAlign: "center",
+  whiteSpace: "nowrap",
+};
+
+const linkCorreo = {
+  color: "#0f5c99",
+  fontWeight: 800,
+  textDecoration: "none",
+};
+
+const badge = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  borderRadius: "999px",
+  padding: "4px 8px",
+  fontSize: "10px",
+  lineHeight: 1,
+  fontWeight: 900,
+  textTransform: "uppercase",
+  whiteSpace: "nowrap",
 };
 
 const botonPrincipal = {
   border: "none",
-  borderRadius: "10px",
-  padding: "10px 14px",
+  borderRadius: "8px",
+  padding: "7px 9px",
   background: "#0891b2",
   color: "white",
+  fontSize: "11px",
   fontWeight: 800,
   cursor: "pointer",
+  marginLeft: "6px",
 };
 
 const botonSecundario = {
-  borderRadius: "10px",
-  padding: "10px 14px",
+  display: "inline-flex",
+  borderRadius: "8px",
+  padding: "7px 9px",
   background: "#e0f2fe",
   color: "#075985",
+  fontSize: "11px",
   fontWeight: 800,
   textDecoration: "none",
 };
 
 const mensaje = {
-  padding: "18px",
-  borderRadius: "14px",
+  padding: "12px 14px",
+  borderRadius: "12px",
   background: "#f8fafc",
   color: "#334155",
-  marginBottom: "18px",
+  marginBottom: "12px",
+  fontSize: "13px",
 };
 
 const errorBox = {
-  padding: "18px",
-  borderRadius: "14px",
+  padding: "12px 14px",
+  borderRadius: "12px",
   background: "#fee2e2",
   color: "#991b1b",
-  marginBottom: "18px",
+  marginBottom: "12px",
+  fontSize: "13px",
   fontWeight: 800,
 };
