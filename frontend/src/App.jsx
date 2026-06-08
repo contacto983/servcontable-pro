@@ -6,6 +6,7 @@ import SelectorModulo from "./pages/SelectorModulo";
 import SelectorEmpresaModulo from "./pages/SelectorEmpresaModulo";
 import SelectorEjercicio from "./pages/SelectorEjercicio";
 import SolicitudesWeb from "./pages/SolicitudesWeb";
+import Inicio from "./pages/Inicio";
 
 import {
   cerrarSesion,
@@ -13,6 +14,15 @@ import {
   obtenerUsuarioActual,
 } from "./services/authService";
 
+
+function esRutaPublicaComercial() {
+  const host = window.location.hostname.toLowerCase();
+  const ruta = window.location.pathname.replace(/\/+$/, "") || "/";
+  const hostPublico = host === "servcontablepro.cl" || host === "www.servcontablepro.cl";
+  const rutaComercial = ["/contratar", "/pago-exitoso", "/pago-pendiente", "/pago-error"].includes(ruta);
+
+  return hostPublico || rutaComercial;
+}
 function leerSessionStorageJSON(clave) {
   try {
     const guardado = sessionStorage.getItem(clave);
@@ -24,6 +34,8 @@ function leerSessionStorageJSON(clave) {
 }
 
 function App() {
+  const rutaPublicaComercial = esRutaPublicaComercial();
+
   const [usuario, setUsuario] = useState(obtenerUsuarioActual());
 
   const [moduloActivo, setModuloActivo] = useState(
@@ -133,6 +145,10 @@ function App() {
     setUsuario(null);
 
     setVista("login");
+  }
+
+  if (rutaPublicaComercial) {
+    return <Inicio />;
   }
 
   if (vista === "registro") {

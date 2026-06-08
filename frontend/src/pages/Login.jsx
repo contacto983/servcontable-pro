@@ -1,4 +1,4 @@
-﻿import { useState } from "react";
+import { useState } from "react";
 import {
   loginDemo,
   loginUsuario,
@@ -118,39 +118,39 @@ export default function Login({ irARegistro, loginCorrecto }) {
         <h1 style={titulo}>ServContable PRO</h1>
         <p style={subtitulo}>
           {resetToken
-            ? "Define una nueva contrasena"
+            ? "Define una nueva contraseña"
             : modoRecuperacion
-            ? "Recuperacion segura de acceso"
+            ? "Recuperación segura de acceso"
             : "Ingreso seguro al sistema"}
         </p>
 
         {resetToken ? (
           <form onSubmit={manejarResetPassword} style={formulario}>
             <div>
-              <label style={label}>Nueva contrasena</label>
+              <label style={label}>Nueva contraseña</label>
               <input
                 style={input}
                 type="password"
                 value={nuevaPassword}
                 onChange={(e) => setNuevaPassword(e.target.value)}
-                placeholder="Minimo 8 caracteres"
+                placeholder="Mínimo 8 caracteres"
                 autoComplete="new-password"
               />
             </div>
 
             <button style={botonPrimario} type="submit">
-              Actualizar contrasena
+              Actualizar contraseña
             </button>
           </form>
         ) : modoRecuperacion ? (
           <form onSubmit={manejarSolicitudRecuperacion} style={formulario}>
             <p style={textoAyuda}>
               Ingresa tu correo y enviaremos un enlace temporal para crear una
-              nueva contrasena.
+              nueva contraseña.
             </p>
 
             <div>
-              <label style={label}>Correo electronico</label>
+              <label style={label}>Correo electrónico</label>
               <input
                 style={input}
                 type="email"
@@ -169,7 +169,7 @@ export default function Login({ irARegistro, loginCorrecto }) {
           <>
             <form onSubmit={manejarLogin} style={formulario}>
               <div>
-                <label style={label}>Correo electronico</label>
+                <label style={label}>Correo electrónico</label>
                 <input
                   style={permiteDemo ? inputDeshabilitado : input}
                   type="email"
@@ -182,7 +182,7 @@ export default function Login({ irARegistro, loginCorrecto }) {
               </div>
 
               <div>
-                <label style={label}>Contrasena</label>
+                <label style={label}>Contraseña</label>
                 <input
                   style={permiteDemo ? inputDeshabilitado : input}
                   type="password"
@@ -213,13 +213,13 @@ export default function Login({ irARegistro, loginCorrecto }) {
                   setMensaje("");
                 }}
               >
-                Recuperar contrasena
+                Recuperar contraseña
               </button>
             )}
 
             {permiteDemo && (
               <button style={botonDemo} type="button" onClick={manejarDemo}>
-                Ingresar a version demo
+                Ingresar a versión demo
               </button>
             )}
 
