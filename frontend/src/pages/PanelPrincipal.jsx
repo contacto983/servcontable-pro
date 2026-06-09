@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { cerrarSesion } from "../services/authService";
 import ModuloHero from "../components/ModuloHero";
 
@@ -10,14 +10,17 @@ import LibroMayor from "./LibroMayor";
 import Balance8Columnas from "./Balance8Columnas";
 import EstadoResultados from "./EstadoResultados";
 import Ventas from "./Ventas";
+import RegistroBoletas from "./RegistroBoletas";
 import Compras from "./Compras";
 import ResumenIVA from "./ResumenIVA";
 import ResumenF29 from "./ResumenF29";
 import ControlRemanenteIVA from "./ControlRemanenteIVA";
 import ConfiguracionContable from "./ConfiguracionContable";
 import LibrosCompraVenta from "./LibrosCompraVenta";
+import ContabilidadSimplificada from "./ContabilidadSimplificada";
 import Honorarios from "./Honorarios";
 import PagosCobros from "./PagosCobros";
+import ConciliacionBancaria from "./ConciliacionBancaria";
 import CuentasPendientes from "./CuentasPendientes";
 import DashboardFinanciero from "./DashboardFinanciero";
 import Remuneraciones from "./Remuneraciones";
@@ -38,6 +41,14 @@ const HEROES_CONTABLE = {
   ventas: {
     titulo: "Registro de Ventas",
     descripcion: "Gestiona documentos de venta, comprobantes automáticos e información tributaria.",
+  },
+  boletas: {
+    titulo: "Registro de Boletas",
+    descripcion: "Importa boletas electronicas SII y genera comprobantes de ingreso.",
+  },
+  conciliacionBancaria: {
+    titulo: "Conciliacion Bancaria",
+    descripcion: "Importa cartolas bancarias y controla movimientos conciliados.",
   },
   compras: {
     titulo: "Registro de Compras",
@@ -78,6 +89,18 @@ const HEROES_CONTABLE = {
   librosCompraVenta: {
     titulo: "Libros Compra/Venta",
     descripcion: "Emite libros tributarios de compras y ventas con formato compacto.",
+  },
+  registroSimplificado: {
+    titulo: "Registro Simplificado",
+    descripcion: "Vista compacta de ingresos, egresos y resultado simplificado.",
+  },
+  libroCaja: {
+    titulo: "Libro de Caja",
+    descripcion: "Controla entradas y salidas de caja y banco.",
+  },
+  libroIngresosEgresos: {
+    titulo: "Libro de Ingresos y Egresos",
+    descripcion: "Consulta el movimiento simplificado de ingresos y egresos.",
   },
   resumenIVA: {
     titulo: "Resumen IVA",
@@ -245,10 +268,12 @@ export default function PanelPrincipal({
       items: [
         { id: "comprobantes", label: "Comprobantes contables" },
         { id: "ventas", label: "Registro de Ventas" },
+        { id: "boletas", label: "Registro de Boletas" },
         { id: "compras", label: "Registro de Compras" },
         { id: "honorarios", label: "Honorarios Recibidos" },
         { id: "pagosCobros", label: "Pagar / Cobrar Documento" },
         { id: "cuentasPendientes", label: "Cuentas por Cobrar/Pagar" },
+        { id: "conciliacionBancaria", label: "Conciliacion Bancaria" },
       ],
     },
     {
@@ -260,6 +285,14 @@ export default function PanelPrincipal({
         { id: "balance8", label: "Balance 8 Columnas" },
         { id: "estadoResultados", label: "Estado de Resultados" },
         { id: "librosCompraVenta", label: "Libros Compra/Venta" },
+      ],
+    },
+    {
+      grupo: "Contabilidad Simplificada",
+      items: [
+        { id: "registroSimplificado", label: "Registro Simplificado" },
+        { id: "libroCaja", label: "Libro de Caja" },
+        { id: "libroIngresosEgresos", label: "Libro de Ingresos y Egresos" },
       ],
     },
     {
@@ -440,15 +473,20 @@ export default function PanelPrincipal({
             {vistaActiva === "balance8" && <Balance8Columnas />}
             {vistaActiva === "estadoResultados" && <EstadoResultados />}
             {vistaActiva === "ventas" && <Ventas />}
+            {vistaActiva === "boletas" && <RegistroBoletas />}
             {vistaActiva === "compras" && <Compras />}
             {vistaActiva === "resumenIVA" && <ResumenIVA />}
             {vistaActiva === "resumenF29" && <ResumenF29 />}
             {vistaActiva === "remanenteIVA" && <ControlRemanenteIVA />}
             {vistaActiva === "configuracionContable" && <ConfiguracionContable />}
             {vistaActiva === "librosCompraVenta" && <LibrosCompraVenta />}
+            {vistaActiva === "registroSimplificado" && <ContabilidadSimplificada vista="registro" />}
+            {vistaActiva === "libroCaja" && <ContabilidadSimplificada vista="caja" />}
+            {vistaActiva === "libroIngresosEgresos" && <ContabilidadSimplificada vista="ingresosEgresos" />}
             {vistaActiva === "honorarios" && <Honorarios />}
             {vistaActiva === "pagosCobros" && <PagosCobros />}
             {vistaActiva === "cuentasPendientes" && <CuentasPendientes irVista={irVista} />}
+            {vistaActiva === "conciliacionBancaria" && <ConciliacionBancaria />}
             {vistaActiva === "analisisCuentas" && <AnalisisCuentas />}
 
             {vistaActiva === "remuneraciones" && <Remuneraciones vistaInicial="panel" />}
@@ -743,3 +781,4 @@ const demoBadge = {
   fontSize: "11px",
   letterSpacing: "0.06em",
 };
+

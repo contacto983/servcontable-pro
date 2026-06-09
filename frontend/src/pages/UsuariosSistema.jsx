@@ -10,6 +10,7 @@ import { listarEmpresas } from "../services/empresaService";
 
 const ROLES_ADMIN_SISTEMA = ["admin", "superadmin", "administrador_sistema"];
 const ROLES_ADMIN_CLIENTE = ["admin_cliente", "cliente_admin"];
+const ROLES_DEMO = ["usuario_demo", "demo", "cliente_demo"];
 
 function rolNormalizado(rol = "") {
   return String(rol || "").trim().toLowerCase();
@@ -29,6 +30,7 @@ function nombreRol(rol = "") {
 
   if (esAdminSistema(rolActual)) return "Administrador sistema";
   if (ROLES_ADMIN_CLIENTE.includes(rolActual)) return "Administrador cliente";
+  if (ROLES_DEMO.includes(rolActual)) return "Usuario demo";
   return "Usuario cliente";
 }
 
@@ -72,6 +74,7 @@ export default function UsuariosSistema() {
   const rolesDisponibles = useMemo(() => {
     const roles = [
       { valor: "usuario_cliente", label: "Usuario cliente" },
+      { valor: "usuario_demo", label: "Usuario demo" },
       { valor: "admin_cliente", label: "Administrador cliente" },
     ];
 

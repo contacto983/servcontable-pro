@@ -196,6 +196,7 @@ async function registrarUsuario(req, res) {
 async function loginUsuario(req, res) {
   try {
     await asegurarEsquemaSuscripcion(pool);
+    await asegurarEsquemaDemo(pool);
 
     const { email, password } = req.body;
 
@@ -208,7 +209,11 @@ async function loginUsuario(req, res) {
     const emailNormalizado = String(email).trim().toLowerCase();
 
     const resultado = await pool.query(
-      "SELECT * FROM usuarios WHERE email = $1 AND activo = true",
+      `SELECT u.*,
+              (u.demo_vence IS NOT NULL AND u.demo_vence < CURRENT_DATE) AS demo_vencido,
+              GREATEST(COALESCE(u.demo_vence, CURRENT_DATE) - CURRENT_DATE, 0)::int AS demo_dias_restantes
+       FROM usuarios u
+       WHERE u.email = $1 AND u.activo = true`,
       [emailNormalizado]
     );
 
@@ -231,13 +236,27 @@ async function loginUsuario(req, res) {
       });
     }
 
+    const esUsuarioDemo = normalizarRol(usuario.rol) === "usuario_demo" || usuario.demo_activo === true;
+
+    if (esUsuarioDemo && (!usuario.demo_activo || usuario.demo_vencido)) {
+      return res.status(403).json({
+        error: usuario.demo_vencido
+          ? `Tu demo vencio el ${formatoFechaDemo(usuario.demo_vence)}. Contrata el plan para continuar.`
+          : "Tu demo ya no esta activa.",
+      });
+    }
+
     const usuarioToken = {
       id: usuario.id,
       email: usuario.email,
       rol: usuario.rol,
+      ...(esUsuarioDemo ? { demo: true } : {}),
     };
 
-    const empresas = await obtenerEmpresasPermitidas(pool, usuarioToken);
+    const empresasPermitidas = await obtenerEmpresasPermitidas(pool, usuarioToken);
+    const empresas = esUsuarioDemo
+      ? empresasPermitidas.slice(0, Number(usuario.demo_empresa_limite || 1))
+      : empresasPermitidas;
 
     const token = jwt.sign(usuarioToken, obtenerJwtSecret(), {
       expiresIn: "8h",
@@ -246,7 +265,7 @@ async function loginUsuario(req, res) {
     return res.json({
       mensaje: "Login correcto",
       token,
-      usuario: datosUsuarioPublico(usuario, empresas),
+      usuario: datosUsuarioPublico(usuario, empresas, { demo: esUsuarioDemo }),
     });
   } catch (error) {
     console.error("Error al iniciar sesion:", error);
@@ -530,6 +549,7 @@ async function crearUsuarioCliente(req, res) {
 
   try {
     await asegurarEsquemaSuscripcion(client);
+    await asegurarEsquemaDemo(client);
 
     const { nombre, email, password, rol, empresa_id, rol_empresa } = req.body;
 
@@ -545,6 +565,12 @@ async function crearUsuarioCliente(req, res) {
     if (!esAdminSistema(req.usuario.rol) && rolNormalizado === "superadmin") {
       return res.status(403).json({
         error: "Solo el administrador del sistema puede crear super administradores",
+      });
+    }
+
+    if (rolNormalizado === "usuario_demo" && !empresaId) {
+      return res.status(400).json({
+        error: "Debe seleccionar la empresa demo asignada",
       });
     }
 
@@ -586,13 +612,33 @@ async function crearUsuarioCliente(req, res) {
 
     await client.query("BEGIN");
     transaccionIniciada = true;
-
     const passwordHash = await bcrypt.hash(password, 10);
+    const esUsuarioDemo = rolNormalizado === "usuario_demo";
     const usuario = await client.query(
-      `INSERT INTO usuarios (nombre, email, password_hash, rol, activo)
-       VALUES ($1, $2, $3, $4, true)
-       RETURNING id, nombre, email, rol, activo, creado_en`,
-      [nombre, emailNormalizado, passwordHash, rolNormalizado]
+      `INSERT INTO usuarios (
+         nombre,
+         email,
+         password_hash,
+         rol,
+         activo,
+         demo_activo,
+         demo_inicio,
+         demo_vence,
+         demo_empresa_limite
+       )
+       VALUES (
+         $1,
+         $2,
+         $3,
+         $4,
+         true,
+         $5,
+         CASE WHEN $5 THEN CURRENT_DATE ELSE NULL END,
+         CASE WHEN $5 THEN CURRENT_DATE + INTERVAL '30 days' ELSE NULL END,
+         CASE WHEN $5 THEN 1 ELSE 1 END
+       )
+       RETURNING id, nombre, email, rol, activo, creado_en, demo_activo, demo_inicio, demo_vence, demo_empresa_limite`,
+      [nombre, emailNormalizado, passwordHash, rolNormalizado, esUsuarioDemo]
     );
 
     if (empresaId) {

@@ -7,7 +7,7 @@ import {
 const LOGO_SRC = "/servcontable-logo.png";
 const DEMO_URL = import.meta.env.VITE_DEMO_URL || "https://demo.servcontablepro.cl";
 const APP_URL = import.meta.env.VITE_APP_URL || "https://app.servcontablepro.cl";
-const WHATSAPP_URL = "https://wa.me/56977089069?text=Hola%2C%20quiero%20contratar%20ServContable%20PRO";
+const WHATSAPP_URL = "https://wa.me/56984508073?text=Hola%2C%20quiero%20contratar%20ServContable%20PRO";
 
 const PRECIOS = {
   mensual: { etiqueta: "Mensual", neto: 16990, descripcion: "+ IVA / mes" },
@@ -268,8 +268,7 @@ export default function Inicio() {
       <section style={seccionWeb} id="demo">
         <h2 style={seccionTitulo}>Demo</h2>
         <div style={demoLegalBox}>
-          <p style={textoPlan}>El demo es individual por cliente: el interesado solicita acceso con su correo, el administrador lo activa por 30 días y queda limitado a 1 empresa.</p>
-          <p style={textoPlan}>Al vencer, el sistema bloquea el ingreso demo y muestra un mensaje para solicitar renovación o contratar el plan.</p>
+          <p style={textoPlan}>El administrador activa el acceso por 30 días, con límite de 1 empresa.</p>
           <button style={botonPrincipalMini} type="button" onClick={() => window.open(DEMO_URL, "_blank", "noopener,noreferrer")}>Solicitar demo</button>
         </div>
       </section>
@@ -301,7 +300,7 @@ export default function Inicio() {
           <LineaResumen label="Aplicación" valor="app.servcontablepro.cl" />
           <LineaResumen label="Demo" valor="demo.servcontablepro.cl" />
           <LineaResumen label="Contacto" valor="contacto@servcontablepro.cl" />
-          <LineaResumen label="WhatsApp" valor="+56977089069" />
+          <LineaResumen label="WhatsApp" valor="+56 9 8450 8073" />
           <LineaResumen label="Razón social / RUT" valor="Completar datos de la empresa emisora en producción" />
         </div>
       </section>
@@ -407,7 +406,7 @@ export default function Inicio() {
             <strong>{formatearCLP(totalSeleccionado.total)}</strong>
           </div>
           <p style={resumenNota}>
-            WhatsApp soporte: +56977089069. Atencion de lunes a viernes.
+            WhatsApp soporte: +56 9 8450 8073. Atencion de lunes a viernes.
           </p>
         </aside>
       </section>

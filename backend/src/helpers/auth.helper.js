@@ -3,12 +3,14 @@ const bcrypt = require("bcryptjs");
 const ROLES_ADMIN_SISTEMA = ["superadmin", "admin", "administrador_sistema"];
 const ROLES_ADMIN_CLIENTE = ["admin_cliente", "cliente_admin"];
 const ROLES_USUARIO_CLIENTE = ["usuario_cliente", "cliente_usuario", "usuario"];
+const ROLES_DEMO = ["usuario_demo", "demo", "cliente_demo"];
 
 function normalizarRol(rol = "") {
   const valor = String(rol || "").trim().toLowerCase();
 
   if (ROLES_ADMIN_SISTEMA.includes(valor)) return "superadmin";
   if (ROLES_ADMIN_CLIENTE.includes(valor)) return "admin_cliente";
+  if (ROLES_DEMO.includes(valor)) return "usuario_demo";
   if (ROLES_USUARIO_CLIENTE.includes(valor)) return "usuario_cliente";
 
   return "usuario_cliente";

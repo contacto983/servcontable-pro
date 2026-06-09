@@ -1,4 +1,4 @@
-const express = require("express");
+﻿const express = require("express");
 const cors = require("cors");
 const { obtenerOrigenesCors } = require("./config/env");
 
@@ -14,6 +14,7 @@ const libroMayorRoutes = require("./routes/libroMayor.routes");
 const balance8Routes = require("./routes/balance8.routes");
 const estadoResultadosRoutes = require("./routes/estadoResultados.routes");
 const ventasRoutes = require("./routes/ventas.routes");
+const boletasRoutes = require("./routes/boletas.routes");
 const comprasRoutes = require("./routes/compras.routes");
 const resumenIVARoutes = require("./routes/resumenIVA.routes");
 const resumenF29Routes = require("./routes/resumenF29.routes");
@@ -22,6 +23,7 @@ const configuracionContableRoutes = require("./routes/configuracionContable.rout
 const librosTributariosRoutes = require("./routes/librosTributarios.routes");
 const honorariosRoutes = require("./routes/honorarios.routes");
 const pagosCobrosRoutes = require("./routes/pagosCobros.routes");
+const conciliacionBancariaRoutes = require("./routes/conciliacionBancaria.routes");
 const cuentasPendientesRoutes = require("./routes/cuentasPendientes.routes");
 const dashboardFinancieroRoutes = require("./routes/dashboardFinanciero.routes");
 const trabajadoresRoutes = require("./routes/trabajadores.routes");
@@ -75,6 +77,7 @@ app.use("/api/libro-mayor", libroMayorRoutes);
 app.use("/api/balance-8-columnas", balance8Routes);
 app.use("/api/estado-resultados", estadoResultadosRoutes);
 app.use("/api/ventas", ventasRoutes);
+app.use("/api/boletas", boletasRoutes);
 app.use("/api/compras", comprasRoutes);
 app.use("/api/resumen-iva", resumenIVARoutes);
 app.use("/api/resumen-f29", resumenF29Routes);
@@ -83,6 +86,7 @@ app.use("/api/configuracion-contable", configuracionContableRoutes);
 app.use("/api/libros-tributarios", librosTributariosRoutes);
 app.use("/api/honorarios", honorariosRoutes);
 app.use("/api/pagos-cobros", pagosCobrosRoutes);
+app.use("/api/conciliacion-bancaria", conciliacionBancariaRoutes);
 app.use("/api/cuentas-pendientes", cuentasPendientesRoutes);
 app.use("/api/dashboard-financiero", dashboardFinancieroRoutes);
 app.use("/api/trabajadores", trabajadoresRoutes);
@@ -102,3 +106,4 @@ app.use("/api/auditoria", auditoriaRoutes);
 
 
 module.exports = app;
+

@@ -36,7 +36,11 @@ async function crearComprobanteAutomaticoVenta(client, venta, configuracion) {
 
   const cuentaIvaDebito = configuracion.cuenta_iva_debito_id;
 
-  if (!cuentaClientes || !cuentaIngreso || !cuentaIvaDebito) {
+  const netoNum = Number(neto || 0);
+  const ivaNum = Number(iva || 0);
+  const totalNum = Number(total || netoNum + ivaNum);
+
+  if (!cuentaClientes || !cuentaIngreso || (ivaNum > 0 && !cuentaIvaDebito)) {
     throw new Error(
       "Falta configuracion contable para generar asiento automatico de venta"
     );
@@ -49,10 +53,6 @@ async function crearComprobanteAutomaticoVenta(client, venta, configuracion) {
     empresa_id,
     tipo
   );
-
-  const netoNum = Number(neto || 0);
-  const ivaNum = Number(iva || 0);
-  const totalNum = Number(total || netoNum + ivaNum);
 
   const glosa = `Folio ${folio || ""} ${razon_social_cliente || ""}`.trim();
 
@@ -307,3 +307,4 @@ module.exports = {
   crearComprobanteAutomaticoCompra,
   actualizarComprobanteAutomaticoCompra,
 };
+
