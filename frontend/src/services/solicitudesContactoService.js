@@ -4,7 +4,6 @@ function buscarTokenEnValor(valor) {
   if (!valor) return "";
 
   if (typeof valor === "string") {
-    // Detecta tokens JWT típicos: eyJxxxx.yyyy.zzzz
     const encontrado = valor.match(/eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/);
     return encontrado ? encontrado[0] : "";
   }
@@ -34,7 +33,7 @@ function buscarTokenEnStorage(storage) {
       const tokenJson = buscarTokenEnValor(json);
       if (tokenJson) return tokenJson;
     } catch {
-      // Ignorar valores que no son JSON
+      // Ignorar valores que no son JSON.
     }
   }
 
@@ -52,12 +51,18 @@ function obtenerToken() {
 function headersJson() {
   const token = obtenerToken();
 
-  console.log("TOKEN SOLICITUDES WEB:", token ? "ENCONTRADO" : "NO ENCONTRADO");
-
   return {
     "Content-Type": "application/json",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
+}
+
+async function leerRespuestaJson(respuesta) {
+  try {
+    return await respuesta.json();
+  } catch {
+    return {};
+  }
 }
 
 export async function listarSolicitudesContacto() {
@@ -66,13 +71,28 @@ export async function listarSolicitudesContacto() {
     headers: headersJson(),
   });
 
-  const data = await respuesta.json();
+  const data = await leerRespuestaJson(respuesta);
 
   if (!respuesta.ok) {
     throw new Error(data.error || "No se pudieron cargar las solicitudes.");
   }
 
   return data.solicitudes || [];
+}
+
+export async function listarPagosMercadoPago() {
+  const respuesta = await fetch(`${API_BASE_URL}/pagos-mercadopago`, {
+    method: "GET",
+    headers: headersJson(),
+  });
+
+  const data = await leerRespuestaJson(respuesta);
+
+  if (!respuesta.ok) {
+    throw new Error(data.error || "No se pudieron cargar los pagos de Mercado Pago.");
+  }
+
+  return data.pagos || [];
 }
 
 export async function actualizarSolicitudContacto(id, payload = {}) {
@@ -82,7 +102,7 @@ export async function actualizarSolicitudContacto(id, payload = {}) {
     body: JSON.stringify(payload),
   });
 
-  const data = await respuesta.json();
+  const data = await leerRespuestaJson(respuesta);
 
   if (!respuesta.ok) {
     throw new Error(data.error || "No se pudo actualizar la solicitud.");

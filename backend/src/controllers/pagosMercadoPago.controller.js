@@ -1,4 +1,4 @@
-﻿const crypto = require("crypto");
+const crypto = require("crypto");
 const pool = require("../database/db");
 const {
   crearPreferenceClient,
@@ -50,7 +50,11 @@ async function asegurarTablaPagosMercadoPago() {
       ADD COLUMN IF NOT EXISTS subtotal_neto NUMERIC(14, 2),
       ADD COLUMN IF NOT EXISTS iva NUMERIC(14, 2),
       ADD COLUMN IF NOT EXISTS usuarios_adicionales INTEGER DEFAULT 0,
-      ADD COLUMN IF NOT EXISTS meses_cobrados INTEGER DEFAULT 1;
+      ADD COLUMN IF NOT EXISTS meses_cobrados INTEGER DEFAULT 1,
+      ADD COLUMN IF NOT EXISTS init_point TEXT,
+      ADD COLUMN IF NOT EXISTS raw_response JSONB,
+      ADD COLUMN IF NOT EXISTS mp_payment_id VARCHAR(200),
+      ADD COLUMN IF NOT EXISTS estado_detalle VARCHAR(150);
   `);
 }
 
@@ -343,7 +347,14 @@ async function webhookMercadoPago(req, res) {
         estado = $2,
         estado_plan = $3,
         estado_detalle = $4,
-        raw_response = $5,
+        raw_response = jsonb_build_object(
+          'payment', $5::jsonb,
+          'preference',
+          CASE
+            WHEN raw_response ? 'payment' THEN raw_response->'preference'
+            ELSE raw_response
+          END
+        ),
         actualizado_en = CURRENT_TIMESTAMP
       WHERE external_reference = $6
       `,
@@ -400,12 +411,15 @@ async function obtenerEstadoContratacionMercadoPago(req, res) {
         empresa,
         rut,
         telefono,
+        mensaje,
         monto,
         subtotal_neto,
         iva,
         usuarios_adicionales,
         meses_cobrados,
         moneda,
+        init_point,
+        raw_response,
         creado_en,
         actualizado_en
       FROM pagos_mercadopago
@@ -457,12 +471,15 @@ async function listarPagosMercadoPago(req, res) {
         empresa,
         rut,
         telefono,
+        mensaje,
         monto,
         subtotal_neto,
         iva,
         usuarios_adicionales,
         meses_cobrados,
         moneda,
+        init_point,
+        raw_response,
         creado_en,
         actualizado_en
       FROM pagos_mercadopago
