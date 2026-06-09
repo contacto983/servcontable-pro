@@ -33,21 +33,48 @@ function limpiarTexto(valor) {
   return String(valor).trim();
 }
 
-function obtenerPlan(planRecibido) {
-  const plan = limpiarTexto(planRecibido).toLowerCase();
+function obtenerPlan(datos = {}) {
+  const modalidad = limpiarTexto(datos.plan || datos.periodicidad || datos.modalidad)
+    .toLowerCase() === "anual"
+    ? "anual"
+    : "mensual";
 
-  if (plan === "anual") {
-    return {
-      codigo: "anual",
-      titulo: "ServContable PRO - Plan anual",
-      precio: 99000,
-    };
-  }
+  const usuariosAdicionales = Math.max(
+    0,
+    Number(datos.usuarios_adicionales || datos.usuariosAdicionales || 0)
+  );
+
+  const PRECIO_MENSUAL_BASE = 16990;
+  const PRECIO_ANUAL_BASE_MENSUAL = 14990;
+  const PRECIO_USUARIO_ADICIONAL_MENSUAL = 3990;
+  const MESES_ANUAL = 12;
+  const IVA = 0.19;
+
+  const mesesCobrados = modalidad === "anual" ? MESES_ANUAL : 1;
+
+  const planBaseNeto =
+    modalidad === "anual"
+      ? PRECIO_ANUAL_BASE_MENSUAL * MESES_ANUAL
+      : PRECIO_MENSUAL_BASE;
+
+  const usuariosAdicionalesNeto =
+    PRECIO_USUARIO_ADICIONAL_MENSUAL * usuariosAdicionales * mesesCobrados;
+
+  const subtotalNeto = planBaseNeto + usuariosAdicionalesNeto;
+  const iva = Math.round(subtotalNeto * IVA);
+  const total = subtotalNeto + iva;
 
   return {
-    codigo: "mensual",
-    titulo: "ServContable PRO - Plan mensual",
-    precio: 9900,
+    codigo: modalidad,
+    titulo:
+      modalidad === "anual"
+        ? "ServContable PRO - Plan anual"
+        : "ServContable PRO - Plan mensual",
+    precio: total,
+    subtotal_neto: subtotalNeto,
+    iva,
+    usuarios_adicionales: usuariosAdicionales,
+    meses_cobrados: mesesCobrados,
   };
 }
 
@@ -58,7 +85,7 @@ async function crearCheckoutMercadoPago(req, res) {
     const nombre = limpiarTexto(req.body.nombre);
     const correo = limpiarTexto(req.body.correo || req.body.email);
     const empresa = limpiarTexto(req.body.empresa);
-    const plan = obtenerPlan(req.body.plan || req.body.interes || "mensual");
+    const plan = obtenerPlan(req.body);
 
     if (!nombre || !correo) {
       return res.status(400).json({
