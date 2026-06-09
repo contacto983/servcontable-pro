@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import {
   crearPreferenciaMercadoPago,
   obtenerEstadoContratacion,
@@ -7,6 +7,7 @@ import {
 const LOGO_SRC = "/servcontable-logo.png";
 const DEMO_URL = import.meta.env.VITE_DEMO_URL || "https://demo.servcontablepro.cl";
 const APP_URL = import.meta.env.VITE_APP_URL || "https://app.servcontablepro.cl";
+const WHATSAPP_URL = "https://wa.me/56977089069?text=Hola%2C%20quiero%20contratar%20ServContable%20PRO";
 
 const PRECIOS = {
   mensual: { etiqueta: "Mensual", neto: 16990, descripcion: "+ IVA / mes" },
@@ -185,7 +186,7 @@ export default function Inicio() {
               type="button"
               onClick={() => irAContratacion("mensual")}
             >
-              Contratar plan PRO
+              Contratar plan
             </button>
             <button
               style={botonSecundario}
@@ -238,11 +239,72 @@ export default function Inicio() {
             type="button"
             onClick={() => irAContratacion(periodicidad)}
           >
-            Contratar plan →
+            Contratar plan
           </button>
         </section>
       </main>
 
+
+      <section style={seccionWeb} id="problema">
+        <h2 style={seccionTitulo}>Qué problema resuelve</h2>
+        <p style={textoPlan}>ServContable PRO ordena contabilidad, remuneraciones e impuestos por empresa, año de trabajo y usuario.</p>
+        <div style={gridWeb3}>
+          <MiniCard titulo="Menos planillas" texto="Compras, ventas, comprobantes, liquidaciones y reportes quedan conectados." />
+          <MiniCard titulo="Control por cliente" texto="Cada cliente administra sus empresas y el administrador revisa accesos, pagos y solicitudes." />
+          <MiniCard titulo="Reportes listos" texto="Libros, balances, IVA, F29, liquidaciones y finiquitos salen con formato compacto." />
+        </div>
+      </section>
+
+      <section style={seccionWeb} id="funciones">
+        <h2 style={seccionTitulo}>Funciones principales</h2>
+        <div style={gridWeb4}>
+          <MiniCard titulo="Contabilidad" texto="Comprobantes, compras, ventas, libro diario, mayor, balance y resultado." />
+          <MiniCard titulo="Tributario" texto="Resumen IVA, F29 estimado, retenciones y control de remanente." />
+          <MiniCard titulo="Remuneraciones" texto="Trabajadores, haberes, descuentos, liquidaciones, pagos y Previred." />
+          <MiniCard titulo="Gestión" texto="Empresas, usuarios, auditoría, demo y solicitudes web." />
+        </div>
+      </section>
+
+      <section style={seccionWeb} id="demo">
+        <h2 style={seccionTitulo}>Demo</h2>
+        <div style={demoLegalBox}>
+          <p style={textoPlan}>El demo es individual por cliente: el interesado solicita acceso con su correo, el administrador lo activa por 30 días y queda limitado a 1 empresa.</p>
+          <p style={textoPlan}>Al vencer, el sistema bloquea el ingreso demo y muestra un mensaje para solicitar renovación o contratar el plan.</p>
+          <button style={botonPrincipalMini} type="button" onClick={() => window.open(DEMO_URL, "_blank", "noopener,noreferrer")}>Solicitar demo</button>
+        </div>
+      </section>
+
+      <section style={seccionWeb} id="faq">
+        <h2 style={seccionTitulo}>Preguntas frecuentes</h2>
+        <div style={gridWeb2}>
+          <Pregunta titulo="¿El plan es multiempresa?" texto="Sí. El plan PRO es multiempresa e incluye 1 usuario." />
+          <Pregunta titulo="¿Cuánto dura el demo?" texto="30 días desde la activación del administrador, con límite de 1 empresa." />
+          <Pregunta titulo="¿Cómo se activa el plan?" texto="Mercado Pago confirma el pago por webhook y el sistema registra la contratación para habilitar el acceso." />
+          <Pregunta titulo="¿Cuánto cuesta un usuario adicional?" texto="$3.990 + IVA mensual por usuario adicional." />
+        </div>
+      </section>
+
+      <section style={seccionWeb} id="legales">
+        <h2 style={seccionTitulo}>Términos y condiciones, privacidad y seguridad</h2>
+        <div style={gridWeb4}>
+          <MiniCard titulo="Términos y condiciones" texto="Servicio SaaS de suscripción mensual o anual. El cliente debe ingresar información fidedigna y revisar sus reportes." />
+          <MiniCard titulo="Política de privacidad" texto="Los datos se usan para contratación, activación, facturación, soporte y comunicaciones del servicio." />
+          <MiniCard titulo="Seguridad" texto="Acceso autenticado, roles de usuario, separación por empresa y bloqueo automático de demos vencidas." />
+          <MiniCard titulo="Retracto" texto="La contratación online informa precio, IVA y condiciones. El derecho a retracto se aplicará cuando corresponda según normativa vigente." />
+        </div>
+      </section>
+
+      <section style={seccionWeb} id="datos-empresa">
+        <h2 style={seccionTitulo}>Datos de empresa</h2>
+        <div style={datosEmpresaBox}>
+          <LineaResumen label="Web" valor="www.servcontablepro.cl" />
+          <LineaResumen label="Aplicación" valor="app.servcontablepro.cl" />
+          <LineaResumen label="Demo" valor="demo.servcontablepro.cl" />
+          <LineaResumen label="Contacto" valor="contacto@servcontablepro.cl" />
+          <LineaResumen label="WhatsApp" valor="+56977089069" />
+          <LineaResumen label="Razón social / RUT" valor="Completar datos de la empresa emisora en producción" />
+        </div>
+      </section>
       <section id="contratar" style={checkout}>
         <div style={checkoutFormCard}>
           <span style={pill}>Checkout seguro</span>
@@ -374,6 +436,25 @@ function LineaResumen({ label, valor }) {
       <span>{label}</span>
       <strong>{valor}</strong>
     </div>
+  );
+}
+
+
+function MiniCard({ titulo, texto }) {
+  return (
+    <article style={miniCard}>
+      <strong>{titulo}</strong>
+      <p>{texto}</p>
+    </article>
+  );
+}
+
+function Pregunta({ pregunta, respuesta }) {
+  return (
+    <details style={preguntaCard}>
+      <summary>{pregunta}</summary>
+      <p>{respuesta}</p>
+    </details>
   );
 }
 
@@ -604,3 +685,15 @@ const avisoPago = (tipo) => ({
   borderRadius: "14px",
   padding: "12px 14px",
 });
+
+
+
+const seccionWeb = { maxWidth: "1160px", margin: "18px auto 0", padding: "22px", background: "white", border: "1px solid #bae6fd", borderRadius: "22px", boxShadow: "0 18px 38px rgba(8, 47, 73, 0.08)" };
+const gridWeb2 = { display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "14px", marginTop: "12px" };
+const gridWeb3 = { display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "14px", marginTop: "12px" };
+const gridWeb4 = { display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: "14px", marginTop: "12px" };
+const miniCard = { background: "#f8fafc", border: "1px solid #dbeafe", borderRadius: "16px", padding: "14px", color: "#102238", lineHeight: 1.45 };
+const preguntaCard = { background: "#f8fafc", border: "1px solid #dbeafe", borderRadius: "16px", padding: "14px", color: "#102238", lineHeight: 1.45 };
+const demoLegalBox = { background: "#ecfeff", border: "1px solid #67e8f9", borderRadius: "16px", padding: "14px", color: "#083344", fontWeight: 800 };
+const datosEmpresaBox = { background: "#f0f9ff", border: "1px solid #bae6fd", borderRadius: "16px", padding: "14px", color: "#075985", lineHeight: 1.5 };
+const botonWhatsapp = { ...botonBase, textDecoration: "none", background: "#22c55e", color: "white", display: "inline-flex", alignItems: "center", justifyContent: "center" };

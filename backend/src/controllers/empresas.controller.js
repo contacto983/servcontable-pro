@@ -26,6 +26,22 @@ async function crearEmpresa(req, res) {
       });
     }
 
+    if (req.usuario?.demo) {
+      const empresasDemo = await client.query(
+        `SELECT COUNT(*)::int AS total
+         FROM usuarios_empresas
+         WHERE usuario_id = $1`,
+        [req.usuario.id]
+      );
+
+      const totalEmpresasDemo = Number(empresasDemo.rows[0]?.total || 0);
+      if (totalEmpresasDemo >= 1) {
+        return res.status(403).json({
+          error: "La demo permite trabajar solo con 1 empresa. Para agregar mas empresas debes contratar el plan PRO.",
+        });
+      }
+    }
+
     await client.query("BEGIN");
     transaccionIniciada = true;
 
@@ -94,3 +110,4 @@ module.exports = {
   crearEmpresa,
   listarEmpresas,
 };
+

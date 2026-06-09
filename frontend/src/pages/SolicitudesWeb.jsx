@@ -3,6 +3,7 @@ import {
   listarSolicitudesContacto,
   actualizarSolicitudContacto,
   listarPagosMercadoPago,
+  activarDemoSolicitud,
 } from "../services/solicitudesContactoService";
 
 export default function SolicitudesWeb({ volverAlPanel }) {
@@ -40,6 +41,22 @@ export default function SolicitudesWeb({ volverAlPanel }) {
       await cargarDatos();
     } catch (err) {
       alert(err.message || "No se pudo actualizar la solicitud.");
+    }
+  }
+
+  async function activarDemo(id) {
+    const confirmar = window.confirm(
+      "Se activara una demo individual por 30 dias y con limite de 1 empresa. ¿Continuar?"
+    );
+
+    if (!confirmar) return;
+
+    try {
+      const data = await activarDemoSolicitud(id, 30);
+      alert(data.mensaje || "Demo activada correctamente.");
+      await cargarDatos();
+    } catch (err) {
+      alert(err.message || "No se pudo activar la demo.");
     }
   }
 
@@ -240,13 +257,23 @@ export default function SolicitudesWeb({ volverAlPanel }) {
                             @
                           </a>
 
-                          {solicitud.estado !== "contactado" && (
+                          {solicitud.estado !== "contactado" && solicitud.estado !== "demo_activado" && (
                             <button
                               style={botonCheck}
                               onClick={() => marcarContactado(solicitud.id)}
                               title="Marcar contactado"
                             >
                               OK
+                            </button>
+                          )}
+
+                          {solicitud.estado !== "demo_activado" && (
+                            <button
+                              style={botonDemoSolicitud}
+                              onClick={() => activarDemo(solicitud.id)}
+                              title="Activar demo 30 dias"
+                            >
+                              D30
                             </button>
                           )}
                         </td>
@@ -776,6 +803,17 @@ const botonCheck = {
   color: "white",
   marginLeft: "5px",
   cursor: "pointer",
+};
+
+const botonDemoSolicitud = {
+  ...botonCorreo,
+  border: "none",
+  background: "linear-gradient(135deg, #0369a1, #06b6d4)",
+  color: "white",
+  width: "34px",
+  marginLeft: "5px",
+  cursor: "pointer",
+  fontSize: "10px",
 };
 
 const detallePanel = {

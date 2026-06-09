@@ -65,6 +65,24 @@ async function leerRespuestaJson(respuesta) {
   }
 }
 
+export async function crearSolicitudContacto(payload = {}) {
+  const respuesta = await fetch(API_BASE_URL + "/contacto", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const data = await leerRespuestaJson(respuesta);
+
+  if (!respuesta.ok) {
+    throw new Error(data.error || "No se pudo enviar la solicitud.");
+  }
+
+  return data.solicitud;
+}
+
 export async function listarSolicitudesContacto() {
   const respuesta = await fetch(`${API_BASE_URL}/contacto`, {
     method: "GET",
@@ -109,4 +127,21 @@ export async function actualizarSolicitudContacto(id, payload = {}) {
   }
 
   return data.solicitud;
+}
+
+
+export async function activarDemoSolicitud(id, dias = 30) {
+  const respuesta = await fetch(API_BASE_URL + "/contacto/" + id + "/activar-demo", {
+    method: "POST",
+    headers: headersJson(),
+    body: JSON.stringify({ dias }),
+  });
+
+  const data = await leerRespuestaJson(respuesta);
+
+  if (!respuesta.ok) {
+    throw new Error(data.error || "No se pudo activar la demo.");
+  }
+
+  return data;
 }

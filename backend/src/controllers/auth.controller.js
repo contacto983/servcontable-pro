@@ -14,6 +14,12 @@ const {
   asegurarEsquemaSuscripcion,
   construirSuscripcionPublica,
 } = require("../helpers/suscripcion.helper");
+const {
+  asegurarEsquemaDemo,
+  asegurarEmpresaDemo,
+  construirDemoPublica,
+  formatoFechaDemo,
+} = require("../helpers/demo.helper");
 
 function registroPublicoHabilitado() {
   return process.env.ALLOW_PUBLIC_REGISTRATION === "true";
@@ -101,6 +107,8 @@ function construirUrlReset(req, token) {
 }
 
 function datosUsuarioPublico(usuario, empresas = [], opciones = {}) {
+  const demoInfo = construirDemoPublica({ ...usuario, demo: opciones.demo === true });
+
   return {
     id: usuario.id,
     nombre: usuario.nombre,
@@ -109,6 +117,7 @@ function datosUsuarioPublico(usuario, empresas = [], opciones = {}) {
     activo: usuario.activo,
     empresas,
     suscripcion: construirSuscripcionPublica(usuario, opciones),
+    ...(demoInfo ? { demo: true, demo_info: demoInfo } : {}),
   };
 }
 
@@ -255,85 +264,76 @@ async function loginDemo(req, res) {
     });
   }
 
+  const emailNormalizado = normalizarEmail(req.body?.email);
+
+  if (!emailNormalizado) {
+    return res.status(400).json({
+      error: "Ingresa el correo autorizado para tu demo.",
+    });
+  }
+
   const client = await pool.connect();
   let transaccionIniciada = false;
 
   try {
-    const demo = datosDemo();
+    await asegurarEsquemaDemo(client);
+
+    const resultado = await client.query(
+      `SELECT
+         id,
+         nombre,
+         email,
+         rol,
+         activo,
+         creado_en,
+         suscripcion_estado,
+         suscripcion_plan,
+         suscripcion_inicio,
+         suscripcion_vence,
+         suscripcion_usuarios_adicionales,
+         suscripcion_pago_external_reference,
+         suscripcion_actualizada_en,
+         demo_activo,
+         demo_inicio,
+         demo_vence,
+         demo_empresa_limite,
+         demo_solicitud_id,
+         (demo_vence IS NULL OR demo_vence < CURRENT_DATE) AS demo_vencido,
+         GREATEST(COALESCE(demo_vence, CURRENT_DATE) - CURRENT_DATE, 0)::int AS demo_dias_restantes
+       FROM usuarios
+       WHERE email = $1
+         AND activo = true
+       LIMIT 1`,
+      [emailNormalizado]
+    );
+
+    if (resultado.rows.length === 0 || !resultado.rows[0].demo_activo) {
+      return res.status(403).json({
+        error:
+          "Tu demo aun no esta habilitada. Solicitala al administrador con este correo.",
+      });
+    }
+
+    const usuario = resultado.rows[0];
+
+    if (usuario.demo_vencido) {
+      await client.query(
+        `UPDATE usuarios
+         SET demo_activo = false,
+             suscripcion_estado = 'vencida',
+             suscripcion_actualizada_en = NOW()
+         WHERE id = $1`,
+        [usuario.id]
+      );
+
+      return res.status(403).json({
+        error: `Tu demo vencio el ${formatoFechaDemo(usuario.demo_vence)}. Para continuar, contrata el plan o solicita una extension.`,
+      });
+    }
 
     await client.query("BEGIN");
     transaccionIniciada = true;
-
-    await asegurarEsquemaSuscripcion(client);
-
-    const passwordHash = await bcrypt.hash(demo.password, 10);
-
-    const usuarioExistente = await client.query(
-      "SELECT id FROM usuarios WHERE email = $1 LIMIT 1",
-      [demo.email]
-    );
-
-    const usuarioResultado =
-      usuarioExistente.rows.length > 0
-        ? await client.query(
-            `UPDATE usuarios
-             SET nombre = $1,
-                 password_hash = $2,
-                 rol = 'admin_cliente',
-                 activo = true
-             WHERE id = $3
-             RETURNING id, nombre, email, rol, activo, creado_en`,
-            [demo.nombre, passwordHash, usuarioExistente.rows[0].id]
-          )
-        : await client.query(
-            `INSERT INTO usuarios (nombre, email, password_hash, rol, activo)
-             VALUES ($1, $2, $3, 'admin_cliente', true)
-             RETURNING id, nombre, email, rol, activo, creado_en`,
-            [demo.nombre, demo.email, passwordHash]
-          );
-
-    const empresaExistente = await client.query(
-      "SELECT id FROM empresas WHERE rut = $1 LIMIT 1",
-      [demo.empresaRut]
-    );
-
-    const datosEmpresa = [
-      demo.empresaRazonSocial,
-      "Servicios demo",
-      "Direccion demo",
-      "Santiago",
-      "Santiago",
-      "14D3 Pro Pyme General",
-    ];
-
-    const empresaResultado =
-      empresaExistente.rows.length > 0
-        ? await client.query(
-            `UPDATE empresas
-             SET razon_social = $1,
-                 giro = $2,
-                 direccion = $3,
-                 comuna = $4,
-                 ciudad = $5,
-                 regimen_tributario = $6,
-                 activa = true
-             WHERE id = $7
-             RETURNING *`,
-            [...datosEmpresa, empresaExistente.rows[0].id]
-          )
-        : await client.query(
-            `INSERT INTO empresas
-             (rut, razon_social, giro, direccion, comuna, ciudad, regimen_tributario, activa)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, true)
-             RETURNING *`,
-            [demo.empresaRut, ...datosEmpresa]
-          );
-
-    const usuario = usuarioResultado.rows[0];
-    const empresa = empresaResultado.rows[0];
-
-    await asignarUsuarioEmpresa(client, usuario.id, empresa.id, "admin");
-
+    await asegurarEmpresaDemo(client, usuario, { nombre: usuario.nombre });
     await client.query("COMMIT");
     transaccionIniciada = false;
 
@@ -344,18 +344,22 @@ async function loginDemo(req, res) {
       demo: true,
     };
 
-    const empresas = await obtenerEmpresasPermitidas(pool, usuarioToken);
+    const empresasPermitidas = await obtenerEmpresasPermitidas(pool, usuarioToken);
+    const limiteEmpresas = Number(usuario.demo_empresa_limite || 1);
+    const empresas = empresasPermitidas.slice(0, limiteEmpresas);
+
     const token = jwt.sign(usuarioToken, obtenerJwtSecret(), {
-      expiresIn: "4h",
+      expiresIn: "8h",
     });
 
     return res.json({
       mensaje: "Demo iniciada correctamente",
       token,
-      usuario: {
-        ...datosUsuarioPublico(usuario, empresas, { demo: true }),
-        demo: true,
-      },
+      usuario: datosUsuarioPublico(
+        { ...usuario, demo_activo: true },
+        empresas,
+        { demo: true }
+      ),
     });
   } catch (error) {
     if (transaccionIniciada) {
@@ -374,7 +378,7 @@ async function loginDemo(req, res) {
 
 async function obtenerSesion(req, res) {
   try {
-    await asegurarEsquemaSuscripcion(pool);
+    await asegurarEsquemaDemo(pool);
 
     const resultado = await pool.query(
       `SELECT
@@ -390,7 +394,14 @@ async function obtenerSesion(req, res) {
          suscripcion_vence,
          suscripcion_usuarios_adicionales,
          suscripcion_pago_external_reference,
-         suscripcion_actualizada_en
+         suscripcion_actualizada_en,
+         demo_activo,
+         demo_inicio,
+         demo_vence,
+         demo_empresa_limite,
+         demo_solicitud_id,
+         (demo_vence IS NULL OR demo_vence < CURRENT_DATE) AS demo_vencido,
+         GREATEST(COALESCE(demo_vence, CURRENT_DATE) - CURRENT_DATE, 0)::int AS demo_dias_restantes
        FROM usuarios
        WHERE id = $1 AND activo = true`,
       [req.usuario.id]
@@ -402,13 +413,25 @@ async function obtenerSesion(req, res) {
       });
     }
 
-    const empresas = await obtenerEmpresasPermitidas(pool, req.usuario);
+    const usuario = resultado.rows[0];
+
+    if (req.usuario?.demo === true && (!usuario.demo_activo || usuario.demo_vencido)) {
+      return res.status(403).json({
+        error: usuario.demo_vencido
+          ? `Tu demo vencio el ${formatoFechaDemo(usuario.demo_vence)}. Contrata el plan para continuar.`
+          : "Tu demo ya no esta activa.",
+      });
+    }
+
+    const empresasPermitidas = await obtenerEmpresasPermitidas(pool, req.usuario);
+    const empresas = req.usuario?.demo === true
+      ? empresasPermitidas.slice(0, Number(usuario.demo_empresa_limite || 1))
+      : empresasPermitidas;
 
     return res.json({
-      usuario: {
-        ...datosUsuarioPublico(resultado.rows[0], empresas),
+      usuario: datosUsuarioPublico(usuario, empresas, {
         demo: req.usuario?.demo === true,
-      },
+      }),
     });
   } catch (error) {
     console.error("Error al obtener sesion:", error);

@@ -1,5 +1,15 @@
+const bcrypt = require("bcryptjs");
+const crypto = require("crypto");
 const pool = require("../database/db");
 const { enviarCorreoSolicitudContacto } = require("../helpers/mail.helper");
+const { asignarUsuarioEmpresa } = require("../helpers/auth.helper");
+const {
+  asegurarEsquemaDemo,
+  asegurarEmpresaDemo,
+  diasDemo,
+  normalizarEmailDemo,
+  formatoFechaDemo,
+} = require("../helpers/demo.helper");
 
 async function asegurarTablaContacto() {
   await pool.query(`
@@ -30,6 +40,26 @@ async function asegurarTablaContacto() {
     ALTER TABLE solicitudes_contacto
     ADD COLUMN IF NOT EXISTS nota_interna TEXT;
   `);
+
+  await pool.query(`
+    ALTER TABLE solicitudes_contacto
+    ADD COLUMN IF NOT EXISTS demo_usuario_id INTEGER;
+  `);
+
+  await pool.query(`
+    ALTER TABLE solicitudes_contacto
+    ADD COLUMN IF NOT EXISTS demo_inicio DATE;
+  `);
+
+  await pool.query(`
+    ALTER TABLE solicitudes_contacto
+    ADD COLUMN IF NOT EXISTS demo_vence DATE;
+  `);
+
+  await pool.query(`
+    ALTER TABLE solicitudes_contacto
+    ADD COLUMN IF NOT EXISTS demo_activado_en TIMESTAMP;
+  `);
 }
 
 function limpiarTexto(valor) {
@@ -56,7 +86,7 @@ async function crearSolicitudContacto(req, res) {
       });
     }
 
-    const emailValido = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo);
+    const emailValido = /^[^s@]+@[^s@]+.[^s@]+$/.test(correo);
 
     if (!emailValido) {
       return res.status(400).json({
@@ -72,16 +102,14 @@ async function crearSolicitudContacto(req, res) {
       VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING id, nombre, correo, empresa, interes, mensaje, estado, origen, creado_en;
       `,
-      [nombre, correo, empresa, interes, mensaje, "web"]
+      [nombre, correo, empresa, interes, mensaje, req.body.origen || "web"]
     );
 
     const solicitud = resultado.rows[0];
 
     try {
       console.log("Intentando enviar correo de solicitud web:", solicitud.id);
-
       const resultadoCorreo = await enviarCorreoSolicitudContacto(solicitud);
-
       console.log("Resultado envio correo solicitud web:", resultadoCorreo);
     } catch (errorCorreo) {
       console.error("Solicitud guardada, pero no se pudo enviar correo:", errorCorreo);
@@ -122,7 +150,11 @@ async function listarSolicitudesContacto(req, res) {
         nota_interna,
         origen,
         creado_en,
-        actualizado_en
+        actualizado_en,
+        demo_usuario_id,
+        demo_inicio,
+        demo_vence,
+        demo_activado_en
       FROM solicitudes_contacto
       ORDER BY creado_en DESC
       LIMIT $1;
@@ -189,8 +221,142 @@ async function actualizarSolicitudContacto(req, res) {
   }
 }
 
+async function activarDemoSolicitud(req, res) {
+  await asegurarTablaContacto();
+
+  const client = await pool.connect();
+  let transaccionIniciada = false;
+
+  try {
+    const solicitudId = Number(req.params.id);
+    const dias = Math.min(Math.max(Number(req.body?.dias || diasDemo()), 1), 90);
+
+    if (!solicitudId) {
+      return res.status(400).json({ ok: false, error: "Solicitud invalida." });
+    }
+
+    await client.query("BEGIN");
+    transaccionIniciada = true;
+    await asegurarEsquemaDemo(client);
+
+    const solicitudResult = await client.query(
+      "SELECT * FROM solicitudes_contacto WHERE id = $1 FOR UPDATE",
+      [solicitudId]
+    );
+
+    if (solicitudResult.rows.length === 0) {
+      await client.query("ROLLBACK");
+      transaccionIniciada = false;
+      return res.status(404).json({ ok: false, error: "Solicitud no encontrada." });
+    }
+
+    const solicitud = solicitudResult.rows[0];
+    const email = normalizarEmailDemo(solicitud.correo);
+
+    if (!email) {
+      await client.query("ROLLBACK");
+      transaccionIniciada = false;
+      return res.status(400).json({ ok: false, error: "La solicitud no tiene correo valido." });
+    }
+
+    const passwordTemporal = crypto.randomBytes(24).toString("hex");
+    const passwordHash = await bcrypt.hash(passwordTemporal, 10);
+    const nombre = limpiarTexto(solicitud.nombre) || "Usuario Demo";
+
+    const existente = await client.query(
+      "SELECT id FROM usuarios WHERE email = $1 LIMIT 1",
+      [email]
+    );
+
+    const usuarioResult = existente.rows.length > 0
+      ? await client.query(
+          `UPDATE usuarios
+           SET nombre = $1,
+               rol = 'admin_cliente',
+               activo = true,
+               demo_activo = true,
+               demo_inicio = CURRENT_DATE,
+               demo_vence = (CURRENT_DATE + ($2::int * INTERVAL '1 day'))::date,
+               demo_empresa_limite = 1,
+               demo_solicitud_id = $3,
+               suscripcion_estado = 'demo',
+               suscripcion_plan = 'demo',
+               suscripcion_inicio = CURRENT_DATE,
+               suscripcion_vence = (CURRENT_DATE + ($2::int * INTERVAL '1 day'))::date,
+               suscripcion_usuarios_adicionales = 0,
+               suscripcion_actualizada_en = NOW()
+           WHERE id = $4
+           RETURNING *`,
+          [nombre, dias, solicitudId, existente.rows[0].id]
+        )
+      : await client.query(
+          `INSERT INTO usuarios
+           (nombre, email, password_hash, rol, activo,
+            demo_activo, demo_inicio, demo_vence, demo_empresa_limite, demo_solicitud_id,
+            suscripcion_estado, suscripcion_plan, suscripcion_inicio, suscripcion_vence,
+            suscripcion_usuarios_adicionales, suscripcion_actualizada_en)
+           VALUES
+           ($1, $2, $3, 'admin_cliente', true,
+            true, CURRENT_DATE, (CURRENT_DATE + ($4::int * INTERVAL '1 day'))::date, 1, $5,
+            'demo', 'demo', CURRENT_DATE, (CURRENT_DATE + ($4::int * INTERVAL '1 day'))::date,
+            0, NOW())
+           RETURNING *`,
+          [nombre, email, passwordHash, dias, solicitudId]
+        );
+
+    const usuario = usuarioResult.rows[0];
+    const empresa = await asegurarEmpresaDemo(client, usuario, solicitud);
+    await asignarUsuarioEmpresa(client, usuario.id, empresa.id, "admin");
+
+    const solicitudActualizada = await client.query(
+      `UPDATE solicitudes_contacto
+       SET estado = 'demo_activado',
+           leido = true,
+           demo_usuario_id = $1,
+           demo_inicio = CURRENT_DATE,
+           demo_vence = (CURRENT_DATE + ($2::int * INTERVAL '1 day'))::date,
+           demo_activado_en = NOW(),
+           actualizado_en = NOW()
+       WHERE id = $3
+       RETURNING *`,
+      [usuario.id, dias, solicitudId]
+    );
+
+    await client.query("COMMIT");
+    transaccionIniciada = false;
+
+    return res.json({
+      ok: true,
+      mensaje: `Demo activada por ${dias} dias para ${email}.`,
+      demo: {
+        email,
+        usuario_id: usuario.id,
+        empresa_id: empresa.id,
+        inicio: formatoFechaDemo(usuario.demo_inicio),
+        vence: formatoFechaDemo(usuario.demo_vence),
+        dias,
+      },
+      solicitud: solicitudActualizada.rows[0],
+    });
+  } catch (error) {
+    if (transaccionIniciada) {
+      await client.query("ROLLBACK");
+    }
+
+    console.error("Error al activar demo desde solicitud:", error);
+
+    return res.status(500).json({
+      ok: false,
+      error: "No se pudo activar la demo.",
+    });
+  } finally {
+    client.release();
+  }
+}
+
 module.exports = {
   crearSolicitudContacto,
   listarSolicitudesContacto,
   actualizarSolicitudContacto,
+  activarDemoSolicitud,
 };

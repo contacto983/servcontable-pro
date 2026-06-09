@@ -58,12 +58,13 @@ export async function loginUsuario(email, password) {
   return data;
 }
 
-export async function loginDemo() {
-  const respuesta = await fetch(`${API_URL}/auth/demo-login`, {
+export async function loginDemo(email) {
+  const respuesta = await fetch(API_URL + "/auth/demo-login", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
+    body: JSON.stringify({ email }),
   });
 
   const data = await respuesta.json();

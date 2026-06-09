@@ -5,6 +5,7 @@ import {
   resetearPasswordConToken,
   solicitarRecuperacionPassword,
 } from "../services/authService";
+import { crearSolicitudContacto } from "../services/solicitudesContactoService";
 
 const LOGO_SRC = "/servcontable-logo.png";
 
@@ -15,6 +16,8 @@ export default function Login({ irARegistro, loginCorrecto }) {
   const [mensaje, setMensaje] = useState("");
   const [urlResetDesarrollo, setUrlResetDesarrollo] = useState("");
   const [error, setError] = useState("");
+  const [solicitarDemo, setSolicitarDemo] = useState(false);
+  const [demoForm, setDemoForm] = useState({ nombre: "", correo: "", empresa: "" });
   const [resetToken, setResetToken] = useState(() => {
     const params = new URLSearchParams(window.location.search);
     return params.get("resetToken") || "";
@@ -23,6 +26,7 @@ export default function Login({ irARegistro, loginCorrecto }) {
     const params = new URLSearchParams(window.location.search);
     return Boolean(params.get("resetToken"));
   });
+
   const permiteRegistroPublico =
     import.meta.env.VITE_ALLOW_PUBLIC_REGISTRATION === "true";
   const permiteDemo = import.meta.env.VITE_DEMO_MODE === "true";
@@ -31,31 +35,64 @@ export default function Login({ irARegistro, loginCorrecto }) {
     e.preventDefault();
 
     if (permiteDemo) {
-      return;
+      return manejarDemo(e);
     }
 
     try {
-      setError("");
-      setMensaje("");
-      setUrlResetDesarrollo("");
-
+      limpiarMensajes();
       const data = await loginUsuario(email, password);
-
       loginCorrecto(data.usuario);
     } catch (err) {
       setError(err.message);
     }
   }
 
-  async function manejarDemo() {
+  async function manejarDemo(e) {
+    e?.preventDefault?.();
+
     try {
-      setError("");
-      setMensaje("");
-      setUrlResetDesarrollo("");
+      limpiarMensajes();
 
-      const data = await loginDemo();
+      if (!email) {
+        throw new Error("Ingresa el correo que fue autorizado para la demo.");
+      }
 
+      const data = await loginDemo(email);
       loginCorrecto(data.usuario);
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function manejarSolicitudDemo(e) {
+    e.preventDefault();
+
+    try {
+      limpiarMensajes();
+
+      const nombre = demoForm.nombre.trim();
+      const correo = (demoForm.correo || email).trim();
+
+      if (!nombre || !correo) {
+        throw new Error("Nombre y correo son obligatorios para solicitar la demo.");
+      }
+
+      await crearSolicitudContacto({
+        nombre,
+        correo,
+        empresa: demoForm.empresa,
+        interes: "Solicitud demo 30 dias",
+        mensaje:
+          "Solicito demo individual de ServContable PRO por 30 dias para evaluar el sistema.",
+        origen: "demo_login",
+      });
+
+      setEmail(correo);
+      setDemoForm({ nombre: "", correo: "", empresa: "" });
+      setSolicitarDemo(false);
+      setMensaje(
+        "Solicitud recibida. El administrador revisara y activara tu demo por 30 dias."
+      );
     } catch (err) {
       setError(err.message);
     }
@@ -65,12 +102,8 @@ export default function Login({ irARegistro, loginCorrecto }) {
     e.preventDefault();
 
     try {
-      setError("");
-      setMensaje("");
-      setUrlResetDesarrollo("");
-
+      limpiarMensajes();
       const data = await solicitarRecuperacionPassword(email);
-
       setMensaje(data.mensaje);
 
       if (data.url_reset_desarrollo) {
@@ -85,30 +118,36 @@ export default function Login({ irARegistro, loginCorrecto }) {
     e.preventDefault();
 
     try {
-      setError("");
-      setMensaje("");
-
+      limpiarMensajes();
       const data = await resetearPasswordConToken(resetToken, nuevaPassword);
 
       setMensaje(data.mensaje);
       setNuevaPassword("");
       setResetToken("");
       setModoRecuperacion(false);
-
       window.history.replaceState({}, document.title, window.location.pathname);
     } catch (err) {
       setError(err.message);
     }
   }
 
+  function limpiarMensajes() {
+    setError("");
+    setMensaje("");
+    setUrlResetDesarrollo("");
+  }
+
   function volverLogin() {
     setModoRecuperacion(false);
     setResetToken("");
     setNuevaPassword("");
-    setMensaje("");
-    setError("");
-    setUrlResetDesarrollo("");
+    setSolicitarDemo(false);
+    limpiarMensajes();
     window.history.replaceState({}, document.title, window.location.pathname);
+  }
+
+  function cambiarDemo(campo, valor) {
+    setDemoForm((actual) => ({ ...actual, [campo]: valor }));
   }
 
   return (
@@ -117,7 +156,9 @@ export default function Login({ irARegistro, loginCorrecto }) {
         <img style={logo} src={LOGO_SRC} alt="ServContable" />
         <h1 style={titulo}>ServContable PRO</h1>
         <p style={subtitulo}>
-          {resetToken
+          {permiteDemo
+            ? "Demo individual por 30 dias"
+            : resetToken
             ? "Define una nueva contraseña"
             : modoRecuperacion
             ? "Recuperación segura de acceso"
@@ -126,17 +167,13 @@ export default function Login({ irARegistro, loginCorrecto }) {
 
         {resetToken ? (
           <form onSubmit={manejarResetPassword} style={formulario}>
-            <div>
-              <label style={label}>Nueva contraseña</label>
-              <input
-                style={input}
-                type="password"
-                value={nuevaPassword}
-                onChange={(e) => setNuevaPassword(e.target.value)}
-                placeholder="Mínimo 8 caracteres"
-                autoComplete="new-password"
-              />
-            </div>
+            <CampoPassword
+              label="Nueva contraseña"
+              value={nuevaPassword}
+              onChange={setNuevaPassword}
+              placeholder="Mínimo 8 caracteres"
+              autoComplete="new-password"
+            />
 
             <button style={botonPrimario} type="submit">
               Actualizar contraseña
@@ -149,57 +186,63 @@ export default function Login({ irARegistro, loginCorrecto }) {
               nueva contraseña.
             </p>
 
-            <div>
-              <label style={label}>Correo electrónico</label>
-              <input
-                style={input}
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="correo@empresa.cl"
-                autoComplete="username"
-              />
-            </div>
+            <CampoEmail value={email} onChange={setEmail} />
 
             <button style={botonPrimario} type="submit">
               Enviar instrucciones
             </button>
           </form>
+        ) : solicitarDemo ? (
+          <form onSubmit={manejarSolicitudDemo} style={formulario}>
+            <p style={textoAyuda}>
+              Solicita acceso demo. El administrador habilitará tu correo por 30
+              días y con límite de 1 empresa.
+            </p>
+
+            <CampoTexto
+              label="Nombre"
+              value={demoForm.nombre}
+              onChange={(valor) => cambiarDemo("nombre", valor)}
+              placeholder="Tu nombre"
+            />
+            <CampoTexto
+              label="Correo electrónico"
+              type="email"
+              value={demoForm.correo || email}
+              onChange={(valor) => {
+                cambiarDemo("correo", valor);
+                setEmail(valor);
+              }}
+              placeholder="correo@empresa.cl"
+            />
+            <CampoTexto
+              label="Empresa"
+              value={demoForm.empresa}
+              onChange={(valor) => cambiarDemo("empresa", valor)}
+              placeholder="Empresa o estudio contable"
+            />
+
+            <button style={botonPrimario} type="submit">
+              Solicitar demo al administrador
+            </button>
+          </form>
         ) : (
           <>
             <form onSubmit={manejarLogin} style={formulario}>
-              <div>
-                <label style={label}>Correo electrónico</label>
-                <input
-                  style={permiteDemo ? inputDeshabilitado : input}
-                  type="email"
-                  value={permiteDemo ? "demo@servcontable.cl" : email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="correo@empresa.cl"
-                  autoComplete="username"
-                  disabled={permiteDemo}
-                />
-              </div>
+              <CampoEmail value={email} onChange={setEmail} />
 
-              <div>
-                <label style={label}>Contraseña</label>
-                <input
-                  style={permiteDemo ? inputDeshabilitado : input}
-                  type="password"
-                  value={permiteDemo ? "demo-servcontable" : password}
-                  onChange={(e) => setPassword(e.target.value)}
+              {!permiteDemo && (
+                <CampoPassword
+                  label="Contraseña"
+                  value={password}
+                  onChange={setPassword}
                   placeholder="********"
                   autoComplete="current-password"
-                  disabled={permiteDemo}
                 />
-              </div>
+              )}
 
-              <button
-                style={permiteDemo ? botonPrimarioDeshabilitado : botonPrimario}
-                type="submit"
-                disabled={permiteDemo}
-              >
-                Ingresar
+              <button style={botonPrimario} type="submit">
+                {permiteDemo ? "Ingresar a demo 30 días" : "Ingresar"}
               </button>
             </form>
 
@@ -209,8 +252,7 @@ export default function Login({ irARegistro, loginCorrecto }) {
                 type="button"
                 onClick={() => {
                   setModoRecuperacion(true);
-                  setError("");
-                  setMensaje("");
+                  limpiarMensajes();
                 }}
               >
                 Recuperar contraseña
@@ -218,18 +260,26 @@ export default function Login({ irARegistro, loginCorrecto }) {
             )}
 
             {permiteDemo && (
-              <button style={botonDemo} type="button" onClick={manejarDemo}>
-                Ingresar a versión demo
+              <button
+                style={botonDemo}
+                type="button"
+                onClick={() => {
+                  setSolicitarDemo(true);
+                  limpiarMensajes();
+                  setDemoForm((actual) => ({ ...actual, correo: email }));
+                }}
+              >
+                Solicitar demo al administrador
               </button>
             )}
 
-            {permiteRegistroPublico && (
+            {permiteRegistroPublico && !permiteDemo && (
               <button style={botonSecundario} onClick={irARegistro}>
                 Crear una cuenta nueva
               </button>
             )}
 
-            {!permiteRegistroPublico && (
+            {!permiteRegistroPublico && !permiteDemo && (
               <p style={notaAcceso}>
                 Los accesos son creados por el administrador del sistema.
               </p>
@@ -245,12 +295,61 @@ export default function Login({ irARegistro, loginCorrecto }) {
         )}
         {error && <p style={mensajeError}>{error}</p>}
 
-        {(modoRecuperacion || resetToken) && (
+        {(modoRecuperacion || resetToken || solicitarDemo) && (
           <button style={botonSecundario} type="button" onClick={volverLogin}>
             Volver al ingreso
           </button>
         )}
       </div>
+    </div>
+  );
+}
+
+function CampoEmail({ value, onChange }) {
+  return (
+    <CampoTexto
+      label="Correo electrónico"
+      type="email"
+      value={value}
+      onChange={onChange}
+      placeholder="correo@empresa.cl"
+      autoComplete="username"
+    />
+  );
+}
+
+function CampoPassword({ label, value, onChange, placeholder, autoComplete }) {
+  return (
+    <CampoTexto
+      label={label}
+      type="password"
+      value={value}
+      onChange={onChange}
+      placeholder={placeholder}
+      autoComplete={autoComplete}
+    />
+  );
+}
+
+function CampoTexto({
+  label,
+  value,
+  onChange,
+  type = "text",
+  placeholder = "",
+  autoComplete = "off",
+}) {
+  return (
+    <div>
+      <label style={labelEstilo}>{label}</label>
+      <input
+        style={input}
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        autoComplete={autoComplete}
+      />
     </div>
   );
 }
@@ -263,104 +362,90 @@ const contenedor = {
   alignItems: "center",
   justifyContent: "center",
   fontFamily: "Arial, sans-serif",
-  padding: "20px",
+  padding: "16px",
 };
 
 const tarjeta = {
   width: "100%",
-  maxWidth: "430px",
+  maxWidth: "390px",
   background: "rgba(255,255,255,0.96)",
-  borderRadius: "26px",
-  padding: "35px",
-  boxShadow: "0 26px 70px rgba(7, 17, 31, 0.28)",
+  borderRadius: "22px",
+  padding: "26px",
+  boxShadow: "0 22px 58px rgba(7, 17, 31, 0.26)",
   border: "1px solid rgba(255,255,255,0.48)",
 };
 
 const logo = {
-  width: "76px",
-  height: "76px",
-  borderRadius: "22px",
+  width: "58px",
+  height: "58px",
+  borderRadius: "16px",
   objectFit: "contain",
   background: "linear-gradient(135deg, #dff7ff, #ffffff)",
   border: "1px solid #67e8f9",
-  padding: "8px",
+  padding: "6px",
   boxSizing: "border-box",
   display: "block",
-  margin: "0 auto 14px",
-  boxShadow: "0 14px 30px rgba(15, 76, 129, 0.16)",
+  margin: "0 auto 10px",
+  boxShadow: "0 12px 26px rgba(15, 76, 129, 0.14)",
 };
 
 const titulo = {
   color: "#0369a1",
-  fontSize: "32px",
+  fontSize: "26px",
   textAlign: "center",
-  marginBottom: "5px",
+  margin: "0 0 4px",
 };
 
 const subtitulo = {
   color: "#475569",
   textAlign: "center",
-  marginBottom: "25px",
+  margin: "0 0 18px",
+  fontSize: "14px",
 };
 
 const formulario = {
   display: "flex",
   flexDirection: "column",
-  gap: "15px",
+  gap: "12px",
 };
 
-const label = {
+const labelEstilo = {
   display: "block",
-  marginBottom: "6px",
+  marginBottom: "5px",
   color: "#1e293b",
   fontWeight: "bold",
-  fontSize: "14px",
+  fontSize: "13px",
 };
 
 const input = {
   width: "100%",
-  padding: "13px",
-  borderRadius: "12px",
+  padding: "11px 12px",
+  borderRadius: "11px",
   border: "1px solid #a9d8ef",
-  fontSize: "15px",
+  fontSize: "14px",
   boxSizing: "border-box",
-};
-
-const inputDeshabilitado = {
-  ...input,
-  background: "#e8f1ff",
-  color: "#1e293b",
-  cursor: "not-allowed",
-  opacity: 0.86,
 };
 
 const botonPrimario = {
   background: "linear-gradient(135deg, #0369a1, #06b6d4)",
   color: "white",
   border: "none",
-  padding: "14px",
+  padding: "12px",
   borderRadius: "12px",
   fontWeight: "bold",
   cursor: "pointer",
-  marginTop: "10px",
-};
-
-const botonPrimarioDeshabilitado = {
-  ...botonPrimario,
-  background: "linear-gradient(135deg, #94a3b8, #cbd5e1)",
-  cursor: "not-allowed",
-  opacity: 0.9,
+  marginTop: "4px",
 };
 
 const botonDemo = {
   background: "linear-gradient(135deg, #ecfeff, #dff7ff)",
   color: "#0369a1",
   border: "2px solid #22d3ee",
-  padding: "13px",
+  padding: "11px",
   borderRadius: "12px",
   fontWeight: "bold",
   cursor: "pointer",
-  marginTop: "14px",
+  marginTop: "12px",
   width: "100%",
 };
 
@@ -368,30 +453,32 @@ const botonSecundario = {
   background: "transparent",
   color: "#0369a1",
   border: "none",
-  marginTop: "20px",
+  marginTop: "14px",
   width: "100%",
   cursor: "pointer",
   fontWeight: "bold",
 };
 
 const mensajeError = {
-  marginTop: "15px",
+  marginTop: "12px",
   color: "#ef4444",
   fontWeight: "bold",
   textAlign: "center",
+  fontSize: "13px",
 };
 
 const mensajeOk = {
-  marginTop: "15px",
+  marginTop: "12px",
   color: "#059669",
   fontWeight: "bold",
   textAlign: "center",
+  fontSize: "13px",
 };
 
 const textoAyuda = {
-  margin: "0 0 4px",
+  margin: "0 0 2px",
   color: "#475569",
-  fontSize: "13px",
+  fontSize: "12.5px",
   lineHeight: 1.45,
   textAlign: "center",
 };
@@ -406,8 +493,8 @@ const enlaceDev = {
 };
 
 const notaAcceso = {
-  marginTop: "20px",
+  marginTop: "16px",
   color: "#475569",
   textAlign: "center",
-  fontSize: "13px",
+  fontSize: "12px",
 };
