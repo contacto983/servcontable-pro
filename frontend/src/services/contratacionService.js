@@ -1,7 +1,7 @@
-import { crearUrlApi } from "./apiConfig";
+﻿import { crearUrlApi } from "./apiConfig";
 
 export async function crearPreferenciaMercadoPago(datosContratacion) {
-  const respuesta = await fetch(crearUrlApi("/pagos-mercadopago/preferencia"), {
+  const respuesta = await fetch(crearUrlApi("/pagos-mercadopago/checkout"), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -28,3 +28,4 @@ export async function obtenerEstadoContratacion(id) {
 
   return data.contratacion;
 }
+
