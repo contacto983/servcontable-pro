@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Login from "./pages/Login";
 import Registro from "./pages/Registro";
 import PanelPrincipal from "./pages/PanelPrincipal";
@@ -6,11 +6,13 @@ import SelectorModulo from "./pages/SelectorModulo";
 import SelectorEmpresaModulo from "./pages/SelectorEmpresaModulo";
 import SelectorEjercicio from "./pages/SelectorEjercicio";
 import SolicitudesWeb from "./pages/SolicitudesWeb";
+import RenovarSuscripcion from "./pages/RenovarSuscripcion";
 import Inicio from "./pages/Inicio";
 
 import {
   cerrarSesion,
   limpiarContextoSesion,
+  obtenerSesionActualizada,
   obtenerUsuarioActual,
 } from "./services/authService";
 
@@ -23,6 +25,14 @@ function esRutaPublicaComercial() {
 
   return hostPublico || rutaComercial;
 }
+function suscripcionVencida(usuarioSesion) {
+  return (
+    usuarioSesion &&
+    usuarioSesion.demo !== true &&
+    usuarioSesion.suscripcion?.vencida === true
+  );
+}
+
 function leerSessionStorageJSON(clave) {
   try {
     const guardado = sessionStorage.getItem(clave);
@@ -136,6 +146,12 @@ function App() {
     setVista("solicitudesWeb");
   }
 
+  function actualizarUsuarioSesion(usuarioActualizado) {
+    if (usuarioActualizado) {
+      setUsuario(usuarioActualizado);
+    }
+  }
+
   function cerrarSesionVisual() {
     cerrarSesion();
 
@@ -146,6 +162,28 @@ function App() {
 
     setVista("login");
   }
+
+  useEffect(() => {
+    if (rutaPublicaComercial || !usuario) return undefined;
+
+    let activo = true;
+
+    obtenerSesionActualizada()
+      .then((usuarioActualizado) => {
+        if (activo) {
+          setUsuario(usuarioActualizado);
+        }
+      })
+      .catch(() => {
+        if (activo) {
+          cerrarSesionVisual();
+        }
+      });
+
+    return () => {
+      activo = false;
+    };
+  }, [rutaPublicaComercial, usuario?.id]);
 
   if (rutaPublicaComercial) {
     return <Inicio />;
@@ -160,6 +198,16 @@ function App() {
       <Login
         irARegistro={() => setVista("registro")}
         loginCorrecto={loginCorrecto}
+      />
+    );
+  }
+
+  if (suscripcionVencida(usuario)) {
+    return (
+      <RenovarSuscripcion
+        usuario={usuario}
+        alCerrarSesion={cerrarSesionVisual}
+        alSesionActualizada={actualizarUsuarioSesion}
       />
     );
   }

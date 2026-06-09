@@ -10,6 +10,10 @@ const {
   obtenerEmpresasPermitidas,
   asignarUsuarioEmpresa,
 } = require("../helpers/auth.helper");
+const {
+  asegurarEsquemaSuscripcion,
+  construirSuscripcionPublica,
+} = require("../helpers/suscripcion.helper");
 
 function registroPublicoHabilitado() {
   return process.env.ALLOW_PUBLIC_REGISTRATION === "true";
@@ -96,7 +100,7 @@ function construirUrlReset(req, token) {
   return `${base}?resetToken=${encodeURIComponent(token)}`;
 }
 
-function datosUsuarioPublico(usuario, empresas = []) {
+function datosUsuarioPublico(usuario, empresas = [], opciones = {}) {
   return {
     id: usuario.id,
     nombre: usuario.nombre,
@@ -104,6 +108,7 @@ function datosUsuarioPublico(usuario, empresas = []) {
     rol: usuario.rol,
     activo: usuario.activo,
     empresas,
+    suscripcion: construirSuscripcionPublica(usuario, opciones),
   };
 }
 
@@ -121,6 +126,8 @@ function datosDemo() {
 
 async function registrarUsuario(req, res) {
   try {
+    await asegurarEsquemaSuscripcion(pool);
+
     const { nombre, email, password } = req.body;
 
     if (!nombre || !email || !password) {
@@ -179,6 +186,8 @@ async function registrarUsuario(req, res) {
 
 async function loginUsuario(req, res) {
   try {
+    await asegurarEsquemaSuscripcion(pool);
+
     const { email, password } = req.body;
 
     if (!email || !password) {
@@ -254,6 +263,8 @@ async function loginDemo(req, res) {
 
     await client.query("BEGIN");
     transaccionIniciada = true;
+
+    await asegurarEsquemaSuscripcion(client);
 
     const passwordHash = await bcrypt.hash(demo.password, 10);
 
@@ -342,7 +353,7 @@ async function loginDemo(req, res) {
       mensaje: "Demo iniciada correctamente",
       token,
       usuario: {
-        ...datosUsuarioPublico(usuario, empresas),
+        ...datosUsuarioPublico(usuario, empresas, { demo: true }),
         demo: true,
       },
     });
@@ -363,8 +374,23 @@ async function loginDemo(req, res) {
 
 async function obtenerSesion(req, res) {
   try {
+    await asegurarEsquemaSuscripcion(pool);
+
     const resultado = await pool.query(
-      `SELECT id, nombre, email, rol, activo, creado_en
+      `SELECT
+         id,
+         nombre,
+         email,
+         rol,
+         activo,
+         creado_en,
+         suscripcion_estado,
+         suscripcion_plan,
+         suscripcion_inicio,
+         suscripcion_vence,
+         suscripcion_usuarios_adicionales,
+         suscripcion_pago_external_reference,
+         suscripcion_actualizada_en
        FROM usuarios
        WHERE id = $1 AND activo = true`,
       [req.usuario.id]
@@ -480,6 +506,8 @@ async function crearUsuarioCliente(req, res) {
   let transaccionIniciada = false;
 
   try {
+    await asegurarEsquemaSuscripcion(client);
+
     const { nombre, email, password, rol, empresa_id, rol_empresa } = req.body;
 
     if (!nombre || !email || !password) {

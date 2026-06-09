@@ -4,6 +4,10 @@ const {
   crearPreferenceClient,
   crearPaymentClient,
 } = require("../helpers/mercadoPago.helper");
+const {
+  asegurarEsquemaSuscripcion,
+  extenderSuscripcionUsuario,
+} = require("../helpers/suscripcion.helper");
 
 const PRECIO_MENSUAL_BASE = 16990;
 const PRECIO_ANUAL_BASE_MENSUAL = 14990;
@@ -18,6 +22,8 @@ async function asegurarTablaPagosMercadoPago() {
       external_reference VARCHAR(120) UNIQUE NOT NULL,
       preference_id VARCHAR(200),
       mp_payment_id VARCHAR(200),
+      usuario_id INTEGER,
+      tipo_operacion VARCHAR(50) DEFAULT 'contratacion',
       estado VARCHAR(80) DEFAULT 'pendiente',
       estado_plan VARCHAR(80) DEFAULT 'pendiente',
       estado_detalle VARCHAR(150),
@@ -43,6 +49,8 @@ async function asegurarTablaPagosMercadoPago() {
 
   await pool.query(`
     ALTER TABLE pagos_mercadopago
+      ADD COLUMN IF NOT EXISTS usuario_id INTEGER,
+      ADD COLUMN IF NOT EXISTS tipo_operacion VARCHAR(50) DEFAULT 'contratacion',
       ADD COLUMN IF NOT EXISTS estado_plan VARCHAR(80) DEFAULT 'pendiente',
       ADD COLUMN IF NOT EXISTS rut VARCHAR(40),
       ADD COLUMN IF NOT EXISTS telefono VARCHAR(80),
@@ -72,7 +80,7 @@ function normalizarEntero(valor, fallback = 0) {
 function normalizarBooleano(valor) {
   if (valor === true) return true;
   const texto = limpiarTexto(valor).toLowerCase();
-  return ["true", "1", "si", "s", "on", "acepto"].includes(texto);
+  return ["true", "1", "si", "sí", "s", "on", "acepto"].includes(texto);
 }
 
 function limpiarUrlBase(url) {
@@ -90,12 +98,14 @@ function obtenerPlan(datos = {}) {
     0
   );
 
-  const mesesCobrados = modalidad === "anual" ? MESES_ANUAL : 1;
+  const mesesSolicitados = normalizarEntero(datos.meses || datos.meses_cobrados, 1);
+  const mesesCobrados =
+    modalidad === "anual" ? MESES_ANUAL : Math.min(Math.max(mesesSolicitados, 1), 12);
 
   const planBaseNeto =
     modalidad === "anual"
       ? PRECIO_ANUAL_BASE_MENSUAL * MESES_ANUAL
-      : PRECIO_MENSUAL_BASE;
+      : PRECIO_MENSUAL_BASE * mesesCobrados;
 
   const usuariosAdicionalesNeto =
     PRECIO_USUARIO_ADICIONAL_MENSUAL * usuariosAdicionales * mesesCobrados;
@@ -109,7 +119,7 @@ function obtenerPlan(datos = {}) {
     titulo:
       modalidad === "anual"
         ? "ServContable PRO - Plan anual"
-        : "ServContable PRO - Plan mensual",
+        : "ServContable PRO - Renovación mensual",
     precio: total,
     plan_base_neto: planBaseNeto,
     usuarios_adicionales_neto: usuariosAdicionalesNeto,
@@ -130,7 +140,7 @@ function crearItemsMercadoPago(plan) {
       description:
         plan.codigo === "anual"
           ? "12 meses x $14.990 neto"
-          : "1 mes x $16.990 neto",
+          : `${plan.meses_cobrados} mes(es) x $16.990 neto`,
       quantity: 1,
       unit_price: plan.plan_base_neto,
       currency_id: "CLP",
@@ -140,10 +150,7 @@ function crearItemsMercadoPago(plan) {
   if (plan.usuarios_adicionales > 0 && plan.usuarios_adicionales_neto > 0) {
     items.push({
       title: `Usuarios adicionales (${plan.usuarios_adicionales})`,
-      description:
-        plan.codigo === "anual"
-          ? `${plan.usuarios_adicionales} usuario(s) x 12 meses x $3.990 neto`
-          : `${plan.usuarios_adicionales} usuario(s) x $3.990 neto`,
+      description: `${plan.usuarios_adicionales} usuario(s) x ${plan.meses_cobrados} mes(es) x $3.990 neto`,
       quantity: 1,
       unit_price: plan.usuarios_adicionales_neto,
       currency_id: "CLP",
@@ -159,6 +166,14 @@ function crearItemsMercadoPago(plan) {
   });
 
   return items;
+}
+
+function construirRawResponseAnterior(rawResponse) {
+  if (!rawResponse) return null;
+  if (rawResponse.payment || rawResponse.preference) {
+    return rawResponse.preference || rawResponse;
+  }
+  return rawResponse;
 }
 
 async function crearCheckoutMercadoPago(req, res) {
@@ -219,6 +234,7 @@ async function crearCheckoutMercadoPago(req, res) {
       notification_url: webhookUrl,
       external_reference: externalReference,
       metadata: {
+        tipo_operacion: "contratacion",
         nombre,
         correo,
         empresa,
@@ -243,6 +259,7 @@ async function crearCheckoutMercadoPago(req, res) {
       (
         external_reference,
         preference_id,
+        tipo_operacion,
         estado,
         estado_plan,
         plan,
@@ -261,11 +278,12 @@ async function crearCheckoutMercadoPago(req, res) {
         init_point,
         raw_response
       )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
       `,
       [
         externalReference,
         preference.id,
+        "contratacion",
         "pendiente",
         "pendiente",
         plan.codigo,
@@ -304,9 +322,166 @@ async function crearCheckoutMercadoPago(req, res) {
   }
 }
 
+async function crearRenovacionMercadoPago(req, res) {
+  try {
+    if (req.usuario?.demo) {
+      return res.status(403).json({
+        ok: false,
+        error: "La versión demo no permite renovar suscripciones.",
+      });
+    }
+
+    await asegurarTablaPagosMercadoPago();
+    await asegurarEsquemaSuscripcion(pool);
+
+    const usuarioResult = await pool.query(
+      `
+      SELECT
+        u.id,
+        u.nombre,
+        u.email,
+        u.suscripcion_estado,
+        u.suscripcion_plan,
+        u.suscripcion_vence,
+        e.razon_social AS empresa,
+        e.rut
+      FROM usuarios u
+      LEFT JOIN usuarios_empresas ue ON ue.usuario_id = u.id AND ue.activo = true
+      LEFT JOIN empresas e ON e.id = ue.empresa_id
+      WHERE u.id = $1 AND u.activo = true
+      ORDER BY e.id ASC
+      LIMIT 1
+      `,
+      [req.usuario.id]
+    );
+
+    if (usuarioResult.rowCount === 0) {
+      return res.status(404).json({
+        ok: false,
+        error: "Usuario no encontrado.",
+      });
+    }
+
+    const usuario = usuarioResult.rows[0];
+    const plan = obtenerPlan(req.body);
+    const externalReference = crypto.randomUUID();
+    const appBaseUrl = limpiarUrlBase(
+      process.env.APP_BASE_URL ||
+        process.env.FRONTEND_APP_URL ||
+        process.env.FRONTEND_URL ||
+        req.headers.origin ||
+        "https://app.servcontablepro.cl"
+    );
+    const webhookUrl = limpiarTexto(
+      process.env.MP_WEBHOOK_URL ||
+        "https://api.servcontablepro.cl/api/pagos-mercadopago/webhook"
+    );
+    const query = `renovacion=${encodeURIComponent(externalReference)}`;
+
+    const preferenceClient = crearPreferenceClient();
+    const preference = await preferenceClient.create({
+      body: {
+        items: crearItemsMercadoPago(plan),
+        payer: {
+          name: usuario.nombre,
+          email: usuario.email,
+        },
+        back_urls: {
+          success: `${appBaseUrl}/?${query}&resultado=exitoso`,
+          failure: `${appBaseUrl}/?${query}&resultado=error`,
+          pending: `${appBaseUrl}/?${query}&resultado=pendiente`,
+        },
+        auto_return: "approved",
+        notification_url: webhookUrl,
+        external_reference: externalReference,
+        metadata: {
+          tipo_operacion: "renovacion",
+          usuario_id: usuario.id,
+          correo: usuario.email,
+          plan: plan.codigo,
+          usuarios_adicionales: plan.usuarios_adicionales,
+          meses_cobrados: plan.meses_cobrados,
+          subtotal_neto: plan.subtotal_neto,
+          iva: plan.iva,
+          total: plan.precio,
+        },
+      },
+    });
+
+    await pool.query(
+      `
+      INSERT INTO pagos_mercadopago
+      (
+        external_reference,
+        preference_id,
+        usuario_id,
+        tipo_operacion,
+        estado,
+        estado_plan,
+        plan,
+        nombre,
+        correo,
+        empresa,
+        rut,
+        mensaje,
+        monto,
+        subtotal_neto,
+        iva,
+        usuarios_adicionales,
+        meses_cobrados,
+        moneda,
+        init_point,
+        raw_response
+      )
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
+      `,
+      [
+        externalReference,
+        preference.id,
+        usuario.id,
+        "renovacion",
+        "pendiente",
+        "pendiente",
+        plan.codigo,
+        usuario.nombre,
+        usuario.email,
+        usuario.empresa || "",
+        usuario.rut || "",
+        "Renovación de suscripción desde la aplicación",
+        plan.precio,
+        plan.subtotal_neto,
+        plan.iva,
+        plan.usuarios_adicionales,
+        plan.meses_cobrados,
+        "CLP",
+        preference.init_point,
+        JSON.stringify(preference),
+      ]
+    );
+
+    return res.json({
+      ok: true,
+      renovacion_id: externalReference,
+      preference_id: preference.id,
+      init_point: preference.init_point,
+      sandbox_init_point: preference.sandbox_init_point,
+      external_reference: externalReference,
+      total: plan.precio,
+    });
+  } catch (error) {
+    console.error("Error al crear renovación Mercado Pago:", error);
+
+    return res.status(500).json({
+      ok: false,
+      error: "No se pudo iniciar la renovación con Mercado Pago.",
+    });
+  }
+}
+
 async function webhookMercadoPago(req, res) {
   try {
     await asegurarTablaPagosMercadoPago();
+    await asegurarEsquemaSuscripcion(pool);
 
     const tipo = req.body?.type || req.query?.type || req.query?.topic;
     const paymentId =
@@ -337,36 +512,94 @@ async function webhookMercadoPago(req, res) {
     const externalReference = pago.external_reference;
     const estado = pago.status || "desconocido";
     const estadoDetalle = pago.status_detail || "";
-    const estadoPlan = estado === "approved" ? "activo" : "pendiente";
 
-    await pool.query(
+    const registroResult = await pool.query(
       `
-      UPDATE pagos_mercadopago
-      SET
-        mp_payment_id = $1,
-        estado = $2,
-        estado_plan = $3,
-        estado_detalle = $4,
-        raw_response = jsonb_build_object(
-          'payment', $5::jsonb,
-          'preference',
-          CASE
-            WHEN raw_response ? 'payment' THEN raw_response->'preference'
-            ELSE raw_response
-          END
-        ),
-        actualizado_en = CURRENT_TIMESTAMP
-      WHERE external_reference = $6
+      SELECT *
+      FROM pagos_mercadopago
+      WHERE external_reference = $1
+      LIMIT 1
       `,
-      [
-        String(paymentId),
-        estado,
-        estadoPlan,
-        estadoDetalle,
-        JSON.stringify(pago),
-        externalReference,
-      ]
+      [externalReference]
     );
+    const registro = registroResult.rows[0] || null;
+    const yaAprobado = registro?.estado === "approved" && registro?.estado_plan === "activo";
+    const estadoPlan =
+      estado === "approved"
+        ? registro?.usuario_id
+          ? "activo"
+          : "pagado"
+        : "pendiente";
+    const rawAnterior = construirRawResponseAnterior(registro?.raw_response);
+    const rawResponse = {
+      payment: pago,
+      preference: rawAnterior,
+    };
+
+    if (estado === "approved" && registro?.usuario_id && !yaAprobado) {
+      const client = await pool.connect();
+
+      try {
+        await client.query("BEGIN");
+        await extenderSuscripcionUsuario(
+          client,
+          registro.usuario_id,
+          registro.meses_cobrados,
+          registro.plan,
+          registro.usuarios_adicionales,
+          externalReference
+        );
+        await client.query(
+          `
+          UPDATE pagos_mercadopago
+          SET
+            mp_payment_id = $1,
+            estado = $2,
+            estado_plan = $3,
+            estado_detalle = $4,
+            raw_response = $5::jsonb,
+            actualizado_en = CURRENT_TIMESTAMP
+          WHERE external_reference = $6
+          `,
+          [
+            String(paymentId),
+            estado,
+            estadoPlan,
+            estadoDetalle,
+            JSON.stringify(rawResponse),
+            externalReference,
+          ]
+        );
+        await client.query("COMMIT");
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      } finally {
+        client.release();
+      }
+    } else {
+      await pool.query(
+        `
+        UPDATE pagos_mercadopago
+        SET
+          mp_payment_id = $1,
+          estado = $2,
+          estado_plan = $3,
+          estado_detalle = $4,
+          raw_response = $5::jsonb,
+          actualizado_en = CURRENT_TIMESTAMP
+        WHERE external_reference = $6
+        `,
+        [
+          String(paymentId),
+          estado,
+          estadoPlan,
+          estadoDetalle,
+          JSON.stringify(rawResponse),
+          externalReference,
+        ]
+      );
+    }
 
     return res.status(200).json({
       ok: true,
@@ -391,7 +624,7 @@ async function obtenerEstadoContratacionMercadoPago(req, res) {
     if (!identificador) {
       return res.status(400).json({
         ok: false,
-        error: "Identificador de contratacion requerido.",
+        error: "Identificador de contratación requerido.",
       });
     }
 
@@ -402,6 +635,8 @@ async function obtenerEstadoContratacionMercadoPago(req, res) {
         external_reference,
         preference_id,
         mp_payment_id,
+        usuario_id,
+        tipo_operacion,
         estado,
         estado_plan,
         estado_detalle,
@@ -434,7 +669,7 @@ async function obtenerEstadoContratacionMercadoPago(req, res) {
     if (resultado.rowCount === 0) {
       return res.status(404).json({
         ok: false,
-        error: "No se encontro la contratacion.",
+        error: "No se encontró la contratación.",
       });
     }
 
@@ -447,7 +682,7 @@ async function obtenerEstadoContratacionMercadoPago(req, res) {
 
     return res.status(500).json({
       ok: false,
-      error: "No se pudo obtener el estado de la contratacion.",
+      error: "No se pudo obtener el estado de la contratación.",
     });
   }
 }
@@ -462,6 +697,8 @@ async function listarPagosMercadoPago(req, res) {
         external_reference,
         preference_id,
         mp_payment_id,
+        usuario_id,
+        tipo_operacion,
         estado,
         estado_plan,
         estado_detalle,
@@ -503,6 +740,7 @@ async function listarPagosMercadoPago(req, res) {
 
 module.exports = {
   crearCheckoutMercadoPago,
+  crearRenovacionMercadoPago,
   webhookMercadoPago,
   obtenerEstadoContratacionMercadoPago,
   listarPagosMercadoPago,
