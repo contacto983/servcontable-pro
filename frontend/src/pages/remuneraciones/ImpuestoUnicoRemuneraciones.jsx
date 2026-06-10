@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { obtenerEmpresaActiva } from "../../services/empresaService";
 import { obtenerPeriodoTrabajo } from "../../services/periodoTrabajoService";
 import PeriodoMesSelector from "../../components/PeriodoMesSelector";
@@ -88,6 +88,11 @@ function calcularTramoEnPesos(definicion, valorUtm) {
   };
 }
 
+function normalizarFactor(factor) {
+  const valor = Number(factor || 0);
+  return valor > 1 && valor <= 100 ? valor / 100 : valor;
+}
+
 export default function ImpuestoUnicoRemuneraciones() {
   const empresaActiva = obtenerEmpresaActiva();
 
@@ -95,6 +100,7 @@ export default function ImpuestoUnicoRemuneraciones() {
   const [tramos, setTramos] = useState([]);
   const [valorUtm, setValorUtm] = useState(68000);
   const [tramoPlantilla, setTramoPlantilla] = useState("");
+  const [basePrueba, setBasePrueba] = useState("");
 
   const [formulario, setFormulario] = useState({
     desde: "",
@@ -105,6 +111,41 @@ export default function ImpuestoUnicoRemuneraciones() {
 
   const [mensaje, setMensaje] = useState("");
   const [error, setError] = useState("");
+
+  const calculoPrueba = useMemo(() => {
+    const base = Number(basePrueba || 0);
+
+    if (base <= 0) {
+      return null;
+    }
+
+    const tramo = tramos.find((item) => {
+      const desde = Number(item.desde || 0);
+      const hasta = Number(item.hasta || 0);
+      return base >= desde && (hasta === 0 || base <= hasta);
+    });
+
+    if (!tramo) {
+      return {
+        base,
+        tramo: null,
+        impuesto: 0,
+      };
+    }
+
+    const factor = normalizarFactor(tramo.factor);
+    const rebaja = Number(tramo.rebaja || 0);
+    const impuesto = Math.max(0, Math.round(base * factor - rebaja));
+
+    return {
+      base,
+      tramo: {
+        ...tramo,
+        factor,
+      },
+      impuesto,
+    };
+  }, [basePrueba, tramos]);
 
   useEffect(() => {
     if (empresaActiva) {
@@ -355,6 +396,41 @@ export default function ImpuestoUnicoRemuneraciones() {
       <div style={card}>
         <h2 style={tituloSeccion}>Tramos configurados</h2>
 
+        <div style={simuladorBox}>
+          <div>
+            <label style={label}>Probar sueldo/base tributable</label>
+            <input
+              style={input}
+              type="number"
+              value={basePrueba}
+              onChange={(e) => setBasePrueba(e.target.value)}
+              placeholder="Ej: 638295"
+            />
+          </div>
+
+          <div style={resultadoSimulador}>
+            {!calculoPrueba ? (
+              <span>Ingresa una base para buscar su tramo.</span>
+            ) : calculoPrueba.tramo ? (
+              <>
+                <strong>
+                  Tramo: {formato(calculoPrueba.tramo.desde)} a{" "}
+                  {Number(calculoPrueba.tramo.hasta || 0) === 0
+                    ? "sin tope"
+                    : formato(calculoPrueba.tramo.hasta)}
+                </strong>
+                <span>
+                  Factor {porcentaje(calculoPrueba.tramo.factor)} | Rebaja{" "}
+                  {formato(calculoPrueba.tramo.rebaja)} | Impuesto{" "}
+                  <strong>{formato(calculoPrueba.impuesto)}</strong>
+                </span>
+              </>
+            ) : (
+              <strong>No hay tramo configurado para esta base.</strong>
+            )}
+          </div>
+        </div>
+
         <div style={tablaBox}>
           <table style={tabla}>
             <thead>
@@ -487,6 +563,27 @@ const botonGuardar = {
   borderRadius: "10px",
   fontWeight: "bold",
   cursor: "pointer",
+};
+
+const simuladorBox = {
+  display: "grid",
+  gridTemplateColumns: "minmax(220px, 320px) 1fr",
+  gap: "12px",
+  alignItems: "end",
+  marginBottom: "14px",
+  padding: "12px",
+  border: "1px solid #bae6fd",
+  borderRadius: "14px",
+  background: "linear-gradient(135deg, #f0f9ff, #ecfeff)",
+};
+
+const resultadoSimulador = {
+  minHeight: "40px",
+  display: "flex",
+  flexDirection: "column",
+  justifyContent: "center",
+  gap: "4px",
+  color: "#0369a1",
 };
 
 const tablaBox = {

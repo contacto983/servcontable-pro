@@ -728,6 +728,22 @@ export default function LiquidacionesRemuneraciones() {
             <Resumen
               label="Base tributable"
               valor={formato(calculo.calculo.base_tributable)}
+              detalle={`Base imponible menos AFP, salud y AFC: ${formato(
+                calculo.calculo.descuentos_previsionales_tributarios
+              )}`}
+            />
+
+            <Resumen
+              label="Tramo impuesto unico"
+              valor={
+                calculo.calculo.tramo_impuesto_unico_id
+                  ? `${formato(calculo.calculo.tramo_impuesto_unico_desde)} a ${
+                      Number(calculo.calculo.tramo_impuesto_unico_hasta || 0) === 0
+                        ? "sin tope"
+                        : formato(calculo.calculo.tramo_impuesto_unico_hasta)
+                    }`
+                  : "Sin tramo"
+              }
             />
 
             <Resumen
@@ -744,6 +760,11 @@ export default function LiquidacionesRemuneraciones() {
             <Resumen
               label="Rebaja impuesto unico"
               valor={formato(calculo.calculo.rebaja_impuesto_unico)}
+            />
+            <Resumen
+              label="Impuesto unico"
+              valor={formato(calculo.calculo.impuesto_unico)}
+              destacado={Number(calculo.calculo.impuesto_unico || 0) > 0}
             />
             <Resumen
               label="Total descuentos"

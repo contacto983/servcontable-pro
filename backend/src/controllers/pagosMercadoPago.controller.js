@@ -1,6 +1,8 @@
 const pool = require("../database/db");
 
 const IVA = 0.19;
+const PRECIO_USUARIO_ADICIONAL = 3990;
+const MESES_ANUALES = 12;
 const PLANES = {
   mensual: {
     periodicidad: "mensual",
@@ -23,14 +25,28 @@ function validarCorreo(correo) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo);
 }
 
-function calcularTotales(periodicidad) {
+function normalizarEnteroPositivo(valor) {
+  const numero = Number.parseInt(valor, 10);
+  return Number.isFinite(numero) && numero > 0 ? numero : 0;
+}
+
+function calcularTotales(periodicidad, usuariosAdicionales = 0) {
   const plan = PLANES[periodicidad] || PLANES.mensual;
-  const iva = Math.round(plan.montoNeto * IVA);
+  const mesesCobrados = periodicidad === "anual" ? MESES_ANUALES : 1;
+  const usuariosAdicionalesNeto =
+    PRECIO_USUARIO_ADICIONAL * usuariosAdicionales * mesesCobrados;
+  const subtotalNeto = plan.montoNeto + usuariosAdicionalesNeto;
+  const iva = Math.round(subtotalNeto * IVA);
 
   return {
     ...plan,
+    usuariosAdicionales,
+    mesesCobrados,
+    planBaseNeto: plan.montoNeto,
+    usuariosAdicionalesNeto,
+    montoNeto: subtotalNeto,
     iva,
-    total: plan.montoNeto + iva,
+    total: subtotalNeto + iva,
   };
 }
 
@@ -123,6 +139,9 @@ async function crearPreferenciaContratacion(req, res) {
     const rut = limpiarTexto(req.body.rut);
     const empresa = limpiarTexto(req.body.empresa);
     const periodicidad = limpiarTexto(req.body.periodicidad || "mensual").toLowerCase();
+    const usuariosAdicionales = normalizarEnteroPositivo(
+      req.body.usuarios_adicionales || req.body.usuariosAdicionales
+    );
     const aceptaTerminos = Boolean(req.body.acepta_terminos || req.body.aceptaTerminos);
 
     if (!nombre || !correo) {
@@ -162,7 +181,7 @@ async function crearPreferenciaContratacion(req, res) {
       });
     }
 
-    const totales = calcularTotales(periodicidad);
+    const totales = calcularTotales(periodicidad, usuariosAdicionales);
 
     const contratacionResult = await pool.query(
       `
@@ -181,7 +200,16 @@ async function crearPreferenciaContratacion(req, res) {
         totales.montoNeto,
         totales.iva,
         totales.total,
-        JSON.stringify({ acepta_terminos: true, plan: "PRO multiempresa 1 usuario" }),
+        JSON.stringify({
+          acepta_terminos: true,
+          plan: "PRO multiempresa 1 usuario",
+          usuarios_adicionales: usuariosAdicionales,
+          meses_cobrados: totales.mesesCobrados,
+          plan_base_neto: totales.planBaseNeto,
+          usuarios_adicionales_neto: totales.usuariosAdicionalesNeto,
+          subtotal_neto: totales.montoNeto,
+          mensaje: limpiarTexto(req.body.mensaje),
+        }),
       ]
     );
 
@@ -195,8 +223,16 @@ async function crearPreferenciaContratacion(req, res) {
           title: totales.nombre,
           description:
             periodicidad === "anual"
-              ? "Plan multiempresa anual con 1 usuario incluido"
-              : "Plan multiempresa mensual con 1 usuario incluido",
+              ? `Plan multiempresa anual con 1 usuario incluido${
+                  usuariosAdicionales
+                    ? ` y ${usuariosAdicionales} usuario(s) adicional(es)`
+                    : ""
+                }`
+              : `Plan multiempresa mensual con 1 usuario incluido${
+                  usuariosAdicionales
+                    ? ` y ${usuariosAdicionales} usuario(s) adicional(es)`
+                    : ""
+                }`,
           quantity: 1,
           currency_id: "CLP",
           unit_price: totales.total,
@@ -221,6 +257,10 @@ async function crearPreferenciaContratacion(req, res) {
         periodicidad,
         correo,
         empresa,
+        usuarios_adicionales: usuariosAdicionales,
+        monto_neto: totales.montoNeto,
+        iva: totales.iva,
+        total: totales.total,
       },
     };
 
@@ -276,6 +316,10 @@ async function crearPreferenciaContratacion(req, res) {
       total: totales.total,
       monto_neto: totales.montoNeto,
       iva: totales.iva,
+      usuarios_adicionales: usuariosAdicionales,
+      usuarios_adicionales_neto: totales.usuariosAdicionalesNeto,
+      plan_base_neto: totales.planBaseNeto,
+      meses_cobrados: totales.mesesCobrados,
     });
   } catch (error) {
     console.error("Error al crear preferencia Mercado Pago:", error);

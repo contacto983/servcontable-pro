@@ -11,6 +11,17 @@ function redondear(valor) {
   return Math.round(Number(valor || 0));
 }
 
+function normalizarFactorImpuestoUnico(factor) {
+  const valor = Number(factor || 0);
+
+  // Permite guardar 4 o 0.04 sin distorsionar el calculo.
+  if (valor > 1 && valor <= 100) {
+    return valor / 100;
+  }
+
+  return valor;
+}
+
 const TASA_SEGURO_SOCIAL_DEFAULT = 1;
 const JORNADA_SEMANAL_DEFAULT = 42;
 const RECARGO_HORA_EXTRA_DEFAULT = 50;
@@ -201,6 +212,7 @@ async function obtenerAfpTrabajador(client, empresaId, periodo, nombreAfp) {
 }
 
 async function calcularImpuestoUnico(client, empresaId, periodo, baseTributable) {
+  const base = Number(baseTributable || 0);
   const resultado = await client.query(
     `
     SELECT *
@@ -216,7 +228,7 @@ async function calcularImpuestoUnico(client, empresaId, periodo, baseTributable)
     ORDER BY desde DESC
     LIMIT 1
     `,
-    [empresaId, periodo, Number(baseTributable || 0)]
+    [empresaId, periodo, base]
   );
 
   if (resultado.rows.length === 0) {
@@ -227,18 +239,19 @@ async function calcularImpuestoUnico(client, empresaId, periodo, baseTributable)
   }
 
   const tramo = resultado.rows[0];
+  const factor = normalizarFactorImpuestoUnico(tramo.factor);
 
   const impuesto = Math.max(
     0,
-    Math.round(
-      Number(baseTributable || 0) * Number(tramo.factor || 0) -
-        Number(tramo.rebaja || 0)
-    )
+    Math.round(base * factor - Number(tramo.rebaja || 0))
   );
 
   return {
     impuesto,
-    tramo,
+    tramo: {
+      ...tramo,
+      factor,
+    },
   };
 }
 
@@ -466,7 +479,15 @@ async function calcularLiquidacionBase(req, res) {
       tasaAfcTrabajador
     );
 
-    const baseTributable = baseImponible;
+    const descuentosPrevisionalesTributarios =
+      Number(descuentoAfp || 0) +
+      Number(descuentoSalud || 0) +
+      Number(descuentoAfc || 0);
+
+    const baseTributable = Math.max(
+      0,
+      redondear(baseImponible - descuentosPrevisionalesTributarios)
+    );
 
     const impuestoUnicoResult = await calcularImpuestoUnico(
       client,
@@ -477,6 +498,17 @@ async function calcularLiquidacionBase(req, res) {
 
     const impuestoUnico = impuestoUnicoResult.impuesto;
     const tramoImpuestoUnico = impuestoUnicoResult.tramo;
+    const advertenciasCalculo = [
+      "Calculo parametrizado segun configuracion del periodo. Las ausencias, permisos sin goce, atrasos o suspensiones que afecten remuneracion ya quedan incorporadas como descuento.",
+    ];
+
+    if (!tramoImpuestoUnico) {
+      advertenciasCalculo.push(
+        `No existe tramo de impuesto unico para la base tributable ${baseTributable.toLocaleString(
+          "es-CL"
+        )} en el periodo ${periodo}; se dejo impuesto unico en $0.`
+      );
+    }
 
     const totalHaberesImponibles = baseImponible;
     const totalHaberesNoImponibles = noImponibles;
@@ -555,7 +587,11 @@ async function calcularLiquidacionBase(req, res) {
 
         base_imponible: baseImponible,
         base_tributable: baseTributable,
+        descuentos_previsionales_tributarios:
+          descuentosPrevisionalesTributarios,
         tramo_impuesto_unico_id: tramoImpuestoUnico?.id || null,
+        tramo_impuesto_unico_desde: Number(tramoImpuestoUnico?.desde || 0),
+        tramo_impuesto_unico_hasta: Number(tramoImpuestoUnico?.hasta || 0),
         factor_impuesto_unico: Number(tramoImpuestoUnico?.factor || 0),
         rebaja_impuesto_unico: Number(tramoImpuestoUnico?.rebaja || 0),
         tope_imponible_pesos: redondear(topeImponiblePesos),
@@ -588,8 +624,7 @@ async function calcularLiquidacionBase(req, res) {
         aporte_mutual_empleador: aporteMutualEmpleador,
         costo_empresa: costoEmpresa,
       },
-      advertencia:
-        "Cálculo parametrizado según configuración del período. Las ausencias, permisos sin goce, atrasos o suspensiones que afecten remuneración ya quedan incorporadas como descuento.",
+      advertencia: advertenciasCalculo.join(" "),
     });
   } catch (error) {
     console.error("Error al calcular liquidación:", error);

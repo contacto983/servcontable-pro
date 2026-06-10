@@ -14,6 +14,7 @@ const {
 const router = express.Router();
 
 router.post("/preferencia", crearPreferenciaContratacion);
+router.post("/checkout", crearPreferenciaContratacion);
 router.post("/webhook", recibirWebhookMercadoPago);
 router.get(
   "/contrataciones",
