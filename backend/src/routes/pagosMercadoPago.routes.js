@@ -1,25 +1,32 @@
 const express = require("express");
 const {
-  crearCheckoutMercadoPago,
-  crearRenovacionMercadoPago,
-  webhookMercadoPago,
-  obtenerEstadoContratacionMercadoPago,
-  listarPagosMercadoPago,
+  crearPreferenciaContratacion,
+  obtenerContratacion,
+  listarContratacionesWeb,
+  actualizarGestionContratacion,
+  recibirWebhookMercadoPago,
 } = require("../controllers/pagosMercadoPago.controller");
-
-const { verificarToken } = require("../middleware/auth.middleware");
-const { soloAdminSistema } = require("../middleware/adminSistema.middleware");
+const {
+  verificarToken,
+  exigirAdministradorUsuarios,
+} = require("../middleware/auth.middleware");
 
 const router = express.Router();
 
-router.post("/checkout", crearCheckoutMercadoPago);
-
-router.post("/renovar", verificarToken, crearRenovacionMercadoPago);
-
-router.post("/webhook", webhookMercadoPago);
-
-router.get("/contratacion/:id", obtenerEstadoContratacionMercadoPago);
-
-router.get("/", verificarToken, soloAdminSistema, listarPagosMercadoPago);
+router.post("/preferencia", crearPreferenciaContratacion);
+router.post("/webhook", recibirWebhookMercadoPago);
+router.get(
+  "/contrataciones",
+  verificarToken,
+  exigirAdministradorUsuarios,
+  listarContratacionesWeb
+);
+router.patch(
+  "/contrataciones/:id/gestion",
+  verificarToken,
+  exigirAdministradorUsuarios,
+  actualizarGestionContratacion
+);
+router.get("/contratacion/:id", obtenerContratacion);
 
 module.exports = router;

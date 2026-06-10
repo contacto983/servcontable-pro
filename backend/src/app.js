@@ -4,8 +4,6 @@ const { obtenerOrigenesCors } = require("./config/env");
 
 const estadoRoutes = require("./routes/estado.routes");
 const authRoutes = require("./routes/auth.routes");
-const contactoRoutes = require("./routes/contacto.routes");
-const pagosMercadoPagoRoutes = require("./routes/pagosMercadoPago.routes");
 const empresasRoutes = require("./routes/empresas.routes");
 const cuentasRoutes = require("./routes/cuentas.routes");
 const comprobantesRoutes = require("./routes/comprobantes.routes");
@@ -40,6 +38,7 @@ const saldoVacacionesRoutes = require("./routes/saldoVacaciones.routes");
 const planCuentasBaseRoutes = require("./routes/planCuentasBase.routes");
 const ejerciciosRoutes = require("./routes/ejercicios.routes");
 const auditoriaRoutes = require("./routes/auditoria.routes");
+const pagosMercadoPagoRoutes = require("./routes/pagosMercadoPago.routes");
 
 
 const app = express();
@@ -67,8 +66,6 @@ app.use(express.json());
 app.use("/", estadoRoutes);
 app.use("/api", estadoRoutes);
 app.use("/api/auth", authRoutes);
-app.use("/api/contacto", contactoRoutes);
-app.use("/api/pagos-mercadopago", pagosMercadoPagoRoutes);
 app.use("/api/empresas", empresasRoutes);
 app.use("/api/cuentas", cuentasRoutes);
 app.use("/api/comprobantes", comprobantesRoutes);
@@ -103,6 +100,7 @@ app.use("/api/saldo-vacaciones", saldoVacacionesRoutes);
 app.use("/api/plan-cuentas-base", planCuentasBaseRoutes);
 app.use("/api/ejercicios", ejerciciosRoutes);
 app.use("/api/auditoria", auditoriaRoutes);
+app.use("/api/pagos-mercadopago", pagosMercadoPagoRoutes);
 
 
 module.exports = app;

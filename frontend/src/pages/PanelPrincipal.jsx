@@ -28,6 +28,7 @@ import DashboardContable from "./contabilidad/DashboardContable";
 import AnalisisCuentas from "./AnalisisCuentas";
 import AuditoriaSistema from "./AuditoriaSistema";
 import UsuariosSistema from "./UsuariosSistema";
+import SolicitudesWeb from "./SolicitudesWeb";
 
 const ROLES_ADMIN_SISTEMA = ["admin", "superadmin", "administrador_sistema"];
 const ROLES_ADMIN_CLIENTE = ["admin_cliente", "cliente_admin"];
@@ -134,6 +135,10 @@ const HEROES_CONTABLE = {
     titulo: "Usuarios y accesos",
     descripcion: "Administra clientes, permisos y accesos al sistema.",
   },
+  solicitudesWeb: {
+    titulo: "Solicitudes Web",
+    descripcion: "Revisa solicitudes, contrataciones y pagos recibidos desde la web.",
+  },
 };
 
 const HEROES_REMUNERACIONES = {
@@ -220,7 +225,7 @@ export default function PanelPrincipal({
     !esUsuarioDemo && puedeGestionarUsuarios(usuario?.rol);
   const heroActual =
     moduloActivo === "remuneraciones"
-      ? HEROES_REMUNERACIONES[vistaActiva]
+      ? HEROES_REMUNERACIONES[vistaActiva] || HEROES_CONTABLE[vistaActiva]
       : HEROES_CONTABLE[vistaActiva];
   const vistasConHeroPropio = ["remConfiguracion"];
   const mostrarHeroPanel = Boolean(heroActual) && !vistasConHeroPropio.includes(vistaActiva);
@@ -298,9 +303,6 @@ export default function PanelPrincipal({
         { id: "empresas", label: "Empresas" },
         { id: "planCuentas", label: "Plan de cuentas" },
         { id: "auditoria", label: "Auditoría del sistema" },
-        ...(usuarioPuedeGestionarUsuarios
-          ? [{ id: "usuariosSistema", label: "Usuarios y accesos" }]
-          : []),
       ],
     },
   ];
@@ -337,12 +339,23 @@ export default function PanelPrincipal({
     },
   ];
 
-  const menuActivo =
+  const menuAdministracion = {
+    grupo: "Administración",
+    items: [
+      { id: "solicitudesWeb", label: "Solicitudes Web" },
+      { id: "usuariosSistema", label: "Usuarios y accesos" },
+    ],
+  };
+
+  const menuBase =
     moduloActivo === "remuneraciones"
       ? menuRemuneraciones
       : moduloActivo === "simplificada"
       ? menuSimplificada
       : menuContable;
+  const menuActivo = usuarioPuedeGestionarUsuarios
+    ? [...menuBase, menuAdministracion]
+    : menuBase;
   const tituloModulo =
     moduloActivo === "remuneraciones"
       ? "Módulo Remuneraciones"
@@ -469,6 +482,9 @@ export default function PanelPrincipal({
             {vistaActiva === "auditoria" && <AuditoriaSistema />}
             {vistaActiva === "usuariosSistema" && usuarioPuedeGestionarUsuarios && (
               <UsuariosSistema />
+            )}
+            {vistaActiva === "solicitudesWeb" && usuarioPuedeGestionarUsuarios && (
+              <SolicitudesWeb />
             )}
             {vistaActiva === "comprobantes" && <Comprobantes />}
             {vistaActiva === "libroDiario" && <LibroDiario />}
