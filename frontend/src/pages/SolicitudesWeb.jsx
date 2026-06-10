@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  activarDemoDesdeSolicitud,
   listarSolicitudesWeb,
   marcarSolicitudContactada,
 } from "../services/solicitudesWebService";
@@ -68,6 +69,10 @@ function estaContactado(solicitud) {
 function descripcionPago(solicitud) {
   const pago = solicitud?.pago_mercado_pago || {};
 
+  if (solicitud?.fuente === "contacto") {
+    return solicitud.mensaje || "Solicitud web registrada";
+  }
+
   if (!solicitud?.mp_payment_id && !pago.id) {
     return "Sin pago confirmado";
   }
@@ -110,6 +115,13 @@ function Icono({ tipo }) {
         <path {...trazo} d="M20 6 9 17l-5-5" />
       </>
     ),
+    demo: (
+      <>
+        <path {...trazo} d="M12 3v18" />
+        <path {...trazo} d="M5 12h14" />
+        <path {...trazo} d="M7 7h10v10H7z" />
+      </>
+    ),
   };
 
   return (
@@ -124,6 +136,7 @@ export default function SolicitudesWeb() {
   const [cargando, setCargando] = useState(false);
   const [mensaje, setMensaje] = useState("");
   const [error, setError] = useState("");
+  const [advertencias, setAdvertencias] = useState([]);
 
   const resumen = useMemo(() => {
     return solicitudes.reduce(
@@ -132,7 +145,10 @@ export default function SolicitudesWeb() {
 
         acc.total += 1;
 
-        if (["activo", "approved", "pagado"].includes(estado)) {
+        if (
+          solicitud.fuente === "mercado_pago" &&
+          ["activo", "approved", "pagado"].includes(estado)
+        ) {
           acc.pagadas += 1;
         }
 
@@ -144,9 +160,12 @@ export default function SolicitudesWeb() {
           acc.contactadas += 1;
         }
 
-        acc.totalPagado += ["activo", "approved", "pagado"].includes(estado)
-          ? Number(solicitud.total || 0)
-          : 0;
+        if (
+          solicitud.fuente === "mercado_pago" &&
+          ["activo", "approved", "pagado"].includes(estado)
+        ) {
+          acc.totalPagado += Number(solicitud.total || 0);
+        }
 
         return acc;
       },
@@ -163,9 +182,11 @@ export default function SolicitudesWeb() {
       setCargando(true);
       setError("");
       setMensaje("");
+      setAdvertencias([]);
 
       const data = await listarSolicitudesWeb();
       setSolicitudes(Array.isArray(data?.solicitudes) ? data.solicitudes : []);
+      setAdvertencias(Array.isArray(data?.advertencias) ? data.advertencias : []);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -173,13 +194,26 @@ export default function SolicitudesWeb() {
     }
   }
 
-  async function marcarContactado(id) {
+  async function marcarContactado(solicitud) {
     try {
       setError("");
       setMensaje("");
 
-      await marcarSolicitudContactada(id);
+      await marcarSolicitudContactada(solicitud);
       setMensaje("Solicitud marcada como contactada.");
+      await cargarSolicitudes();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function activarDemo(solicitud) {
+    try {
+      setError("");
+      setMensaje("");
+
+      const data = await activarDemoDesdeSolicitud(solicitud);
+      setMensaje(data?.mensaje || "Demo activada correctamente.");
       await cargarSolicitudes();
     } catch (err) {
       setError(err.message);
@@ -203,6 +237,11 @@ export default function SolicitudesWeb() {
 
       {mensaje && <p style={ok}>{mensaje}</p>}
       {error && <p style={errorTexto}>{error}</p>}
+      {advertencias.map((advertencia) => (
+        <p key={advertencia} style={alertaTexto}>
+          {advertencia}
+        </p>
+      ))}
 
       <div style={gridResumen}>
         <ResumenCard titulo="Solicitudes" valor={resumen.total} />
@@ -249,17 +288,24 @@ export default function SolicitudesWeb() {
                       </small>
                     </td>
                     <td style={td}>
+                      <span style={badgeAzul}>{texto(solicitud.tipo_solicitud)}</span>
                       <strong>{texto(solicitud.periodicidad)}</strong>
                       <small style={textoSecundario}>
                         {texto(solicitud.empresa || "Sin empresa informada")}
                       </small>
                     </td>
                     <td style={td}>
-                      <strong>{formatoMoneda(solicitud.total)}</strong>
-                      <small style={textoSecundario}>
-                        Neto {formatoMoneda(solicitud.monto_neto)} / IVA{" "}
-                        {formatoMoneda(solicitud.iva)}
-                      </small>
+                      <strong>
+                        {solicitud.fuente === "contacto"
+                          ? "-"
+                          : formatoMoneda(solicitud.total)}
+                      </strong>
+                      {solicitud.fuente !== "contacto" && (
+                        <small style={textoSecundario}>
+                          Neto {formatoMoneda(solicitud.monto_neto)} / IVA{" "}
+                          {formatoMoneda(solicitud.iva)}
+                        </small>
+                      )}
                     </td>
                     <td style={td}>
                       <span style={obtenerBadgeEstado(solicitud.estado)}>
@@ -268,7 +314,11 @@ export default function SolicitudesWeb() {
                       {contactado && <span style={badgeVerde}>Contactado</span>}
                     </td>
                     <td style={td}>
-                      <strong>{texto(solicitud.mp_payment_id || pago.id)}</strong>
+                      <strong>
+                        {solicitud.fuente === "contacto"
+                          ? "Solicitud"
+                          : texto(solicitud.mp_payment_id || pago.id)}
+                      </strong>
                       <small style={textoSecundario}>
                         {descripcionPago(solicitud)}
                       </small>
@@ -295,6 +345,10 @@ export default function SolicitudesWeb() {
                             valor={pago.pagador?.identificacion_numero}
                           />
                           <Dato label="Actualizado" valor={formatoFecha(solicitud.actualizado_en)} />
+                          <Dato label="Origen" valor={solicitud.origen} />
+                          <Dato label="Mensaje" valor={solicitud.mensaje} />
+                          <Dato label="Demo inicio" valor={formatoFecha(solicitud.demo_inicio)} />
+                          <Dato label="Demo vence" valor={formatoFecha(solicitud.demo_vence)} />
                         </div>
                       </details>
                     </td>
@@ -314,10 +368,24 @@ export default function SolicitudesWeb() {
                         title="Marcar contactado"
                         aria-label="Marcar contactado"
                         disabled={contactado}
-                        onClick={() => marcarContactado(solicitud.id)}
+                        onClick={() => marcarContactado(solicitud)}
                       >
                         <Icono tipo="ok" />
                       </button>
+
+                      {solicitud.fuente === "contacto" &&
+                        String(solicitud.origen || "").includes("demo") &&
+                        normalizar(solicitud.estado) !== "demo_activado" && (
+                          <button
+                            style={botonIconoDemo}
+                            type="button"
+                            title="Activar demo 30 dias"
+                            aria-label="Activar demo 30 dias"
+                            onClick={() => activarDemo(solicitud)}
+                          >
+                            <Icono tipo="demo" />
+                          </button>
+                        )}
                     </td>
                   </tr>
                 );
@@ -548,6 +616,11 @@ const botonIconoVerde = {
   background: "#10b981",
 };
 
+const botonIconoDemo = {
+  ...botonIconoBase,
+  background: "linear-gradient(135deg, #0f5f97, #06b6d4)",
+};
+
 const botonIconoGris = {
   ...botonIconoBase,
   background: "#94a3b8",
@@ -562,6 +635,12 @@ const ok = {
 
 const errorTexto = {
   color: "#dc2626",
+  fontWeight: "bold",
+  margin: "0 0 10px",
+};
+
+const alertaTexto = {
+  color: "#b45309",
   fontWeight: "bold",
   margin: "0 0 10px",
 };

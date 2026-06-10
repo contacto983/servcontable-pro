@@ -1,11 +1,18 @@
-const nodemailer = require("nodemailer");
+let nodemailer = null;
+
+try {
+  nodemailer = require("nodemailer");
+} catch {
+  nodemailer = null;
+}
 
 function correoHabilitado() {
   return Boolean(
-    process.env.SMTP_HOST &&
-    process.env.SMTP_PORT &&
-    process.env.SMTP_USER &&
-    process.env.SMTP_PASS
+    nodemailer &&
+      process.env.SMTP_HOST &&
+      process.env.SMTP_PORT &&
+      process.env.SMTP_USER &&
+      process.env.SMTP_PASS
   );
 }
 
@@ -23,15 +30,11 @@ function crearTransporter() {
 
 async function enviarCorreoSolicitudContacto(solicitud) {
   if (!correoHabilitado()) {
-    console.log("Correo no enviado: variables SMTP no configuradas.");
     return { enviado: false, motivo: "SMTP no configurado" };
   }
 
   const destino = process.env.CONTACT_TO || "contacto@servcontablepro.cl";
-  const from =
-    process.env.MAIL_FROM ||
-    `"ServContable PRO" <${process.env.SMTP_USER}>`;
-
+  const from = process.env.MAIL_FROM || `"ServContable PRO" <${process.env.SMTP_USER}>`;
   const asunto = `Nueva solicitud web - ${solicitud.nombre}`;
 
   const texto = `
@@ -40,7 +43,7 @@ Nueva solicitud desde servcontablepro.cl
 Nombre: ${solicitud.nombre}
 Correo: ${solicitud.correo}
 Empresa: ${solicitud.empresa || "-"}
-Interés: ${solicitud.interes || "-"}
+Interes: ${solicitud.interes || "-"}
 Mensaje:
 ${solicitud.mensaje || "-"}
 `;
@@ -50,7 +53,7 @@ ${solicitud.mensaje || "-"}
     <p><strong>Nombre:</strong> ${solicitud.nombre}</p>
     <p><strong>Correo:</strong> ${solicitud.correo}</p>
     <p><strong>Empresa:</strong> ${solicitud.empresa || "-"}</p>
-    <p><strong>Interés:</strong> ${solicitud.interes || "-"}</p>
+    <p><strong>Interes:</strong> ${solicitud.interes || "-"}</p>
     <p><strong>Mensaje:</strong></p>
     <p>${(solicitud.mensaje || "-").replace(/\n/g, "<br>")}</p>
   `;

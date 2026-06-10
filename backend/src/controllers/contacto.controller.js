@@ -28,36 +28,12 @@ async function asegurarTablaContacto() {
 
   await pool.query(`
     ALTER TABLE solicitudes_contacto
-    ADD COLUMN IF NOT EXISTS leido BOOLEAN DEFAULT false;
-  `);
-
-  await pool.query(`
-    ALTER TABLE solicitudes_contacto
-    ADD COLUMN IF NOT EXISTS actualizado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
-  `);
-
-  await pool.query(`
-    ALTER TABLE solicitudes_contacto
-    ADD COLUMN IF NOT EXISTS nota_interna TEXT;
-  `);
-
-  await pool.query(`
-    ALTER TABLE solicitudes_contacto
-    ADD COLUMN IF NOT EXISTS demo_usuario_id INTEGER;
-  `);
-
-  await pool.query(`
-    ALTER TABLE solicitudes_contacto
-    ADD COLUMN IF NOT EXISTS demo_inicio DATE;
-  `);
-
-  await pool.query(`
-    ALTER TABLE solicitudes_contacto
-    ADD COLUMN IF NOT EXISTS demo_vence DATE;
-  `);
-
-  await pool.query(`
-    ALTER TABLE solicitudes_contacto
+    ADD COLUMN IF NOT EXISTS leido BOOLEAN DEFAULT false,
+    ADD COLUMN IF NOT EXISTS actualizado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    ADD COLUMN IF NOT EXISTS nota_interna TEXT,
+    ADD COLUMN IF NOT EXISTS demo_usuario_id INTEGER,
+    ADD COLUMN IF NOT EXISTS demo_inicio DATE,
+    ADD COLUMN IF NOT EXISTS demo_vence DATE,
     ADD COLUMN IF NOT EXISTS demo_activado_en TIMESTAMP;
   `);
 }
@@ -67,17 +43,22 @@ function limpiarTexto(valor) {
   return String(valor).trim();
 }
 
+function validarCorreo(correo) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo);
+}
+
 async function crearSolicitudContacto(req, res) {
   try {
     await asegurarTablaContacto();
 
     const nombre = limpiarTexto(req.body.nombre);
-    const correo = limpiarTexto(req.body.correo || req.body.email);
+    const correo = limpiarTexto(req.body.correo || req.body.email).toLowerCase();
     const empresa = limpiarTexto(req.body.empresa);
     const interes = limpiarTexto(
       req.body.interes || req.body.interes_principal || req.body.interesPrincipal
     );
     const mensaje = limpiarTexto(req.body.mensaje);
+    const origen = limpiarTexto(req.body.origen || "web");
 
     if (!nombre || !correo) {
       return res.status(400).json({
@@ -86,9 +67,7 @@ async function crearSolicitudContacto(req, res) {
       });
     }
 
-    const emailValido = /^[^s@]+@[^s@]+.[^s@]+$/.test(correo);
-
-    if (!emailValido) {
+    if (!validarCorreo(correo)) {
       return res.status(400).json({
         ok: false,
         error: "El correo ingresado no es valido.",
@@ -102,15 +81,13 @@ async function crearSolicitudContacto(req, res) {
       VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING id, nombre, correo, empresa, interes, mensaje, estado, origen, creado_en;
       `,
-      [nombre, correo, empresa, interes, mensaje, req.body.origen || "web"]
+      [nombre, correo, empresa, interes, mensaje, origen]
     );
 
     const solicitud = resultado.rows[0];
 
     try {
-      console.log("Intentando enviar correo de solicitud web:", solicitud.id);
-      const resultadoCorreo = await enviarCorreoSolicitudContacto(solicitud);
-      console.log("Resultado envio correo solicitud web:", resultadoCorreo);
+      await enviarCorreoSolicitudContacto(solicitud);
     } catch (errorCorreo) {
       console.error("Solicitud guardada, pero no se pudo enviar correo:", errorCorreo);
     }
@@ -134,7 +111,7 @@ async function listarSolicitudesContacto(req, res) {
   try {
     await asegurarTablaContacto();
 
-    const limite = Math.min(Number(req.query.limite || 50), 200);
+    const limite = Math.min(Number(req.query.limite || 300), 500);
 
     const resultado = await pool.query(
       `
@@ -180,8 +157,6 @@ async function actualizarSolicitudContacto(req, res) {
   try {
     await asegurarTablaContacto();
 
-    const { id } = req.params;
-
     const estado = limpiarTexto(req.body.estado || "contactado");
     const notaInterna = limpiarTexto(req.body.nota_interna || req.body.notaInterna);
 
@@ -196,7 +171,7 @@ async function actualizarSolicitudContacto(req, res) {
       WHERE id = $3
       RETURNING *;
       `,
-      [estado, notaInterna, id]
+      [estado, notaInterna, req.params.id]
     );
 
     if (resultado.rowCount === 0) {
@@ -268,41 +243,42 @@ async function activarDemoSolicitud(req, res) {
       [email]
     );
 
-    const usuarioResult = existente.rows.length > 0
-      ? await client.query(
-          `UPDATE usuarios
-           SET nombre = $1,
-               rol = 'admin_cliente',
-               activo = true,
-               demo_activo = true,
-               demo_inicio = CURRENT_DATE,
-               demo_vence = (CURRENT_DATE + ($2::int * INTERVAL '1 day'))::date,
-               demo_empresa_limite = 1,
-               demo_solicitud_id = $3,
-               suscripcion_estado = 'demo',
-               suscripcion_plan = 'demo',
-               suscripcion_inicio = CURRENT_DATE,
-               suscripcion_vence = (CURRENT_DATE + ($2::int * INTERVAL '1 day'))::date,
-               suscripcion_usuarios_adicionales = 0,
-               suscripcion_actualizada_en = NOW()
-           WHERE id = $4
-           RETURNING *`,
-          [nombre, dias, solicitudId, existente.rows[0].id]
-        )
-      : await client.query(
-          `INSERT INTO usuarios
-           (nombre, email, password_hash, rol, activo,
-            demo_activo, demo_inicio, demo_vence, demo_empresa_limite, demo_solicitud_id,
-            suscripcion_estado, suscripcion_plan, suscripcion_inicio, suscripcion_vence,
-            suscripcion_usuarios_adicionales, suscripcion_actualizada_en)
-           VALUES
-           ($1, $2, $3, 'admin_cliente', true,
-            true, CURRENT_DATE, (CURRENT_DATE + ($4::int * INTERVAL '1 day'))::date, 1, $5,
-            'demo', 'demo', CURRENT_DATE, (CURRENT_DATE + ($4::int * INTERVAL '1 day'))::date,
-            0, NOW())
-           RETURNING *`,
-          [nombre, email, passwordHash, dias, solicitudId]
-        );
+    const usuarioResult =
+      existente.rows.length > 0
+        ? await client.query(
+            `UPDATE usuarios
+             SET nombre = $1,
+                 rol = 'admin_cliente',
+                 activo = true,
+                 demo_activo = true,
+                 demo_inicio = CURRENT_DATE,
+                 demo_vence = (CURRENT_DATE + ($2::int * INTERVAL '1 day'))::date,
+                 demo_empresa_limite = 1,
+                 demo_solicitud_id = $3,
+                 suscripcion_estado = 'demo',
+                 suscripcion_plan = 'demo',
+                 suscripcion_inicio = CURRENT_DATE,
+                 suscripcion_vence = (CURRENT_DATE + ($2::int * INTERVAL '1 day'))::date,
+                 suscripcion_usuarios_adicionales = 0,
+                 suscripcion_actualizada_en = NOW()
+             WHERE id = $4
+             RETURNING *`,
+            [nombre, dias, solicitudId, existente.rows[0].id]
+          )
+        : await client.query(
+            `INSERT INTO usuarios
+             (nombre, email, password_hash, rol, activo,
+              demo_activo, demo_inicio, demo_vence, demo_empresa_limite, demo_solicitud_id,
+              suscripcion_estado, suscripcion_plan, suscripcion_inicio, suscripcion_vence,
+              suscripcion_usuarios_adicionales, suscripcion_actualizada_en)
+             VALUES
+             ($1, $2, $3, 'admin_cliente', true,
+              true, CURRENT_DATE, (CURRENT_DATE + ($4::int * INTERVAL '1 day'))::date, 1, $5,
+              'demo', 'demo', CURRENT_DATE, (CURRENT_DATE + ($4::int * INTERVAL '1 day'))::date,
+              0, NOW())
+             RETURNING *`,
+            [nombre, email, passwordHash, dias, solicitudId]
+          );
 
     const usuario = usuarioResult.rows[0];
     const empresa = await asegurarEmpresaDemo(client, usuario, solicitud);

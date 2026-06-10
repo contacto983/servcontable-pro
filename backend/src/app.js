@@ -39,6 +39,7 @@ const planCuentasBaseRoutes = require("./routes/planCuentasBase.routes");
 const ejerciciosRoutes = require("./routes/ejercicios.routes");
 const auditoriaRoutes = require("./routes/auditoria.routes");
 const pagosMercadoPagoRoutes = require("./routes/pagosMercadoPago.routes");
+const contactoRoutes = require("./routes/contacto.routes");
 
 
 const app = express();
@@ -101,6 +102,7 @@ app.use("/api/plan-cuentas-base", planCuentasBaseRoutes);
 app.use("/api/ejercicios", ejerciciosRoutes);
 app.use("/api/auditoria", auditoriaRoutes);
 app.use("/api/pagos-mercadopago", pagosMercadoPagoRoutes);
+app.use("/api/contacto", contactoRoutes);
 
 
 module.exports = app;
