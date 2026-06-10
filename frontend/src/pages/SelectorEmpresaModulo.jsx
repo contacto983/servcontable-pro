@@ -82,6 +82,7 @@ export default function SelectorEmpresaModulo({
   function nombreModulo() {
     if (moduloActivo === "contable") return "Módulo Contable";
     if (moduloActivo === "remuneraciones") return "Módulo Remuneraciones";
+    if (moduloActivo === "simplificada") return "Módulo Contabilidad Simplificada";
     return "Módulo";
   }
 

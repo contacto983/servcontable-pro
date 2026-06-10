@@ -196,9 +196,10 @@ function puedeGestionarUsuarios(rol = "") {
   return ROLES_ADMIN_SISTEMA.includes(rolActual) || ROLES_ADMIN_CLIENTE.includes(rolActual);
 }
 
-function esAdministradorSistema(rol = "") {
-  const rolActual = rolNormalizado(rol);
-  return ROLES_ADMIN_SISTEMA.includes(rolActual);
+function vistaInicialPorModulo(moduloActivo) {
+  if (moduloActivo === "remuneraciones") return "remuneraciones";
+  if (moduloActivo === "simplificada") return "registroSimplificado";
+  return "inicio";
 }
 
 export default function PanelPrincipal({
@@ -210,11 +211,8 @@ export default function PanelPrincipal({
   cambiarEjercicio,
   volverASeleccionModulo,
   alCerrarSesion,
-  abrirSolicitudesWeb,
 }) {
-  const [vistaActiva, setVistaActiva] = useState(
-    moduloActivo === "remuneraciones" ? "remuneraciones" : "inicio"
-  );
+  const [vistaActiva, setVistaActiva] = useState(() => vistaInicialPorModulo(moduloActivo));
   const [menuAbierto, setMenuAbierto] = useState(true);
   const [gruposAbiertos, setGruposAbiertos] = useState({});
   const esUsuarioDemo = usuario?.demo === true;
@@ -226,8 +224,6 @@ export default function PanelPrincipal({
       : HEROES_CONTABLE[vistaActiva];
   const vistasConHeroPropio = ["remConfiguracion"];
   const mostrarHeroPanel = Boolean(heroActual) && !vistasConHeroPropio.includes(vistaActiva);
-  const usuarioEsAdminSistema =
-  !esUsuarioDemo && esAdministradorSistema(usuario?.rol);
 
   function irVista(vista) {
     setVistaActiva(vista);
@@ -288,14 +284,6 @@ export default function PanelPrincipal({
       ],
     },
     {
-      grupo: "Contabilidad Simplificada",
-      items: [
-        { id: "registroSimplificado", label: "Registro Simplificado" },
-        { id: "libroCaja", label: "Libro de Caja" },
-        { id: "libroIngresosEgresos", label: "Libro de Ingresos y Egresos" },
-      ],
-    },
-    {
       grupo: "Tributario",
       items: [
         { id: "resumenIVA", label: "Resumen IVA" },
@@ -313,6 +301,17 @@ export default function PanelPrincipal({
         ...(usuarioPuedeGestionarUsuarios
           ? [{ id: "usuariosSistema", label: "Usuarios y accesos" }]
           : []),
+      ],
+    },
+  ];
+
+  const menuSimplificada = [
+    {
+      grupo: "Contabilidad Simplificada",
+      items: [
+        { id: "registroSimplificado", label: "Registro Simplificado" },
+        { id: "libroCaja", label: "Libro de Caja" },
+        { id: "libroIngresosEgresos", label: "Libro de Ingresos y Egresos" },
       ],
     },
   ];
@@ -338,9 +337,18 @@ export default function PanelPrincipal({
     },
   ];
 
-  const menuActivo = moduloActivo === "remuneraciones" ? menuRemuneraciones : menuContable;
+  const menuActivo =
+    moduloActivo === "remuneraciones"
+      ? menuRemuneraciones
+      : moduloActivo === "simplificada"
+      ? menuSimplificada
+      : menuContable;
   const tituloModulo =
-    moduloActivo === "remuneraciones" ? "Módulo Remuneraciones" : "Módulo Contable";
+    moduloActivo === "remuneraciones"
+      ? "Módulo Remuneraciones"
+      : moduloActivo === "simplificada"
+      ? "Módulo Contabilidad Simplificada"
+      : "Módulo Contable";
 
   return (
     <div style={layout}>
@@ -403,11 +411,6 @@ export default function PanelPrincipal({
           })}
 
           <div style={accionesMenu}>
-            {usuarioEsAdminSistema && (
-              <button style={botonCambiar} onClick={abrirSolicitudesWeb}>
-                Solicitudes Web
-              </button>
-            )}
             <button style={botonCambiar} onClick={cambiarEmpresa}>Cambiar empresa</button>
             {typeof cambiarEjercicio === "function" && (
               <button style={botonCambiar} onClick={cambiarEjercicio}>Cambiar año</button>
