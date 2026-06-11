@@ -67,7 +67,7 @@ function obtenerWebhookUrl() {
   const backendBase = (
     process.env.BACKEND_PUBLIC_URL ||
     process.env.API_PUBLIC_URL ||
-    "https://app.servcontablepro.cl"
+    "https://api.servcontablepro.cl"
   ).replace(/\/+$/, "");
 
   return `${backendBase}/api/pagos-mercadopago/webhook`;
