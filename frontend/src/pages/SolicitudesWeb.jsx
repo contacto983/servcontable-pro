@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+﻿import { Fragment, useEffect, useMemo, useState } from "react";
 import {
   activarDemoDesdeSolicitud,
   listarSolicitudesWeb,
@@ -136,6 +136,7 @@ export default function SolicitudesWeb() {
   const [mensaje, setMensaje] = useState("");
   const [error, setError] = useState("");
   const [advertencias, setAdvertencias] = useState([]);
+  const [detalleAbiertoId, setDetalleAbiertoId] = useState(null);
 
   const resumen = useMemo(() => {
     return solicitudes.reduce(
@@ -276,117 +277,143 @@ export default function SolicitudesWeb() {
                 const pago = solicitud.pago_flow || {};
                 const contactado = estaContactado(solicitud);
 
+                const detalleAbierto = detalleAbiertoId === solicitud.id;
+
                 return (
-                  <tr key={solicitud.id}>
-                    <td style={td}>{formatoFecha(solicitud.creado_en)}</td>
-                    <td style={td}>
-                      <strong>{texto(solicitud.nombre)}</strong>
-                      <small style={textoSecundario}>{texto(solicitud.correo)}</small>
-                      <small style={textoSecundario}>
-                        {texto(solicitud.telefono || solicitud.rut)}
-                      </small>
-                    </td>
-                    <td style={td}>
-                      <span style={badgeAzul}>{texto(solicitud.tipo_solicitud)}</span>
-                      <strong>{texto(solicitud.periodicidad)}</strong>
-                      <small style={textoSecundario}>
-                        {texto(solicitud.empresa || "Sin empresa informada")}
-                      </small>
-                    </td>
-                    <td style={td}>
-                      <strong>
-                        {solicitud.fuente === "contacto"
-                          ? "-"
-                          : formatoMoneda(solicitud.total)}
-                      </strong>
-                      {solicitud.fuente !== "contacto" && (
+                  <Fragment key={solicitud.id}>
+                    <tr>
+                      <td style={td}>{formatoFecha(solicitud.creado_en)}</td>
+                      <td style={td}>
+                        <strong>{texto(solicitud.nombre)}</strong>
+                        <small style={textoSecundario}>{texto(solicitud.correo)}</small>
                         <small style={textoSecundario}>
-                          Neto {formatoMoneda(solicitud.monto_neto)} / IVA{" "}
-                          {formatoMoneda(solicitud.iva)}
+                          {texto(solicitud.telefono || solicitud.rut)}
                         </small>
-                      )}
-                    </td>
-                    <td style={td}>
-                      <span style={obtenerBadgeEstado(solicitud.estado)}>
-                        {texto(solicitud.estado)}
-                      </span>
-                      {contactado && <span style={badgeVerde}>Contactado</span>}
-                    </td>
-                    <td style={td}>
-                      <strong>
-                        {solicitud.fuente === "contacto"
-                          ? "Solicitud"
-                          : texto(solicitud.flow_order || pago.flow_order)}
-                      </strong>
-                      <small style={textoSecundario}>
-                        {descripcionPago(solicitud)}
-                      </small>
-                    </td>
-                    <td style={tdDetalle}>
-                      <details>
-                        <summary style={summary}>Ver detalle</summary>
-                        <div style={detalleGrid}>
-                          <Dato label="Token Flow" valor={solicitud.flow_token} />
-                          <Dato label="Estado Flow" valor={solicitud.flow_status || pago.estado} />
-                          <Dato
-                            label="Detalle Flow"
-                            valor={pago.descripcion_estado || solicitud.flow_status}
-                          />
-                          <Dato label="Fecha pago" valor={formatoFecha(pago.fecha_pago)} />
-                          <Dato label="Monto Flow" valor={formatoMoneda(pago.monto)} />
-                          <Dato label="Orden Flow" valor={pago.flow_order || solicitud.flow_order} />
-                          <Dato
-                            label="Pagador"
-                            valor={pago.pagador?.correo || pago.pagador?.nombre || solicitud.correo}
-                          />
-                          <Dato
-                            label="RUT pagador"
-                            valor={pago.pagador?.rut || solicitud.rut}
-                          />
-                          <Dato label="Actualizado" valor={formatoFecha(solicitud.actualizado_en)} />
-                          <Dato label="Origen" valor={solicitud.origen} />
-                          <Dato label="Mensaje" valor={solicitud.mensaje} />
-                          <Dato label="Demo inicio" valor={formatoFecha(solicitud.demo_inicio)} />
-                          <Dato label="Demo vence" valor={formatoFecha(solicitud.demo_vence)} />
-                        </div>
-                      </details>
-                    </td>
-                    <td style={tdAccion}>
-                      <a
-                        style={botonIconoAzul}
-                        title="Responder correo"
-                        aria-label="Responder correo"
-                        href={`mailto:${solicitud.correo}`}
-                      >
-                        <Icono tipo="correo" />
-                      </a>
-
-                      <button
-                        style={contactado ? botonIconoGris : botonIconoVerde}
-                        type="button"
-                        title="Marcar contactado"
-                        aria-label="Marcar contactado"
-                        disabled={contactado}
-                        onClick={() => marcarContactado(solicitud)}
-                      >
-                        <Icono tipo="ok" />
-                      </button>
-
-                      {solicitud.fuente === "contacto" &&
-                        String(solicitud.origen || "").includes("demo") &&
-                        normalizar(solicitud.estado) !== "demo_activado" && (
-                          <button
-                            style={botonIconoDemo}
-                            type="button"
-                            title="Activar demo 30 dias"
-                            aria-label="Activar demo 30 dias"
-                            onClick={() => activarDemo(solicitud)}
-                          >
-                            <Icono tipo="demo" />
-                          </button>
+                      </td>
+                      <td style={td}>
+                        <span style={badgeAzul}>{texto(solicitud.tipo_solicitud)}</span>
+                        <strong>{texto(solicitud.periodicidad)}</strong>
+                        <small style={textoSecundario}>
+                          {texto(solicitud.empresa || "Sin empresa informada")}
+                        </small>
+                      </td>
+                      <td style={td}>
+                        <strong>
+                          {solicitud.fuente === "contacto"
+                            ? "-"
+                            : formatoMoneda(solicitud.total)}
+                        </strong>
+                        {solicitud.fuente !== "contacto" && (
+                          <small style={textoSecundario}>
+                            Neto {formatoMoneda(solicitud.monto_neto)} / IVA{" "}
+                            {formatoMoneda(solicitud.iva)}
+                          </small>
                         )}
-                    </td>
-                  </tr>
+                      </td>
+                      <td style={td}>
+                        <span style={obtenerBadgeEstado(solicitud.estado)}>
+                          {texto(solicitud.estado)}
+                        </span>
+                        {contactado && <span style={badgeVerde}>Contactado</span>}
+                      </td>
+                      <td style={td}>
+                        <strong>
+                          {solicitud.fuente === "contacto"
+                            ? "Solicitud"
+                            : texto(solicitud.flow_order || pago.flow_order)}
+                        </strong>
+                        <small style={textoSecundario}>
+                          {descripcionPago(solicitud)}
+                        </small>
+                      </td>
+                      <td style={tdDetalle}>
+                        <button
+                          style={botonDetalle}
+                          type="button"
+                          onClick={() =>
+                            setDetalleAbiertoId(detalleAbierto ? null : solicitud.id)
+                          }
+                        >
+                          {detalleAbierto ? "Ocultar detalle" : "Ver detalle"}
+                        </button>
+                      </td>
+                      <td style={tdAccion}>
+                        <a
+                          style={botonIconoAzul}
+                          title="Responder correo"
+                          aria-label="Responder correo"
+                          href={`mailto:${solicitud.correo}`}
+                        >
+                          <Icono tipo="correo" />
+                        </a>
+
+                        <button
+                          style={contactado ? botonIconoGris : botonIconoVerde}
+                          type="button"
+                          title="Marcar contactado"
+                          aria-label="Marcar contactado"
+                          disabled={contactado}
+                          onClick={() => marcarContactado(solicitud)}
+                        >
+                          <Icono tipo="ok" />
+                        </button>
+
+                        {solicitud.fuente === "contacto" &&
+                          String(solicitud.origen || "").includes("demo") &&
+                          normalizar(solicitud.estado) !== "demo_activado" && (
+                            <button
+                              style={botonIconoDemo}
+                              type="button"
+                              title="Activar demo 30 dias"
+                              aria-label="Activar demo 30 dias"
+                              onClick={() => activarDemo(solicitud)}
+                            >
+                              <Icono tipo="demo" />
+                            </button>
+                          )}
+                      </td>
+                    </tr>
+
+                    {detalleAbierto && (
+                      <tr>
+                        <td style={tdDetalleExpandido} colSpan={8}>
+                          <div style={detallePanelCompleto}>
+                            <div style={detallePanelHeader}>
+                              <strong>Detalle completo de la solicitud</strong>
+                              <span style={textoSecundario}>
+                                {texto(solicitud.nombre)} / {texto(solicitud.correo)}
+                              </span>
+                            </div>
+
+                            <div style={detalleGridCompleto}>
+                              <Dato label="Token Flow" valor={solicitud.flow_token} />
+                              <Dato label="Estado Flow" valor={solicitud.flow_status || pago.estado} />
+                              <Dato
+                                label="Detalle Flow"
+                                valor={pago.descripcion_estado || solicitud.flow_status}
+                              />
+                              <Dato label="Fecha pago" valor={formatoFecha(pago.fecha_pago)} />
+                              <Dato label="Monto Flow" valor={formatoMoneda(pago.monto)} />
+                              <Dato label="Orden Flow" valor={pago.flow_order || solicitud.flow_order} />
+                              <Dato
+                                label="Pagador"
+                                valor={pago.pagador?.correo || pago.pagador?.nombre || solicitud.correo}
+                              />
+                              <Dato
+                                label="RUT pagador"
+                                valor={pago.pagador?.rut || solicitud.rut}
+                              />
+                              <Dato label="Actualizado" valor={formatoFecha(solicitud.actualizado_en)} />
+                              <Dato label="Origen" valor={solicitud.origen} />
+                              <Dato label="Mensaje" valor={solicitud.mensaje} />
+                              <Dato label="Demo inicio" valor={formatoFecha(solicitud.demo_inicio)} />
+                              <Dato label="Demo vence" valor={formatoFecha(solicitud.demo_vence)} />
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
                 );
               })}
 
@@ -508,7 +535,39 @@ const td = {
 
 const tdDetalle = {
   ...td,
-  minWidth: "260px",
+  minWidth: "130px",
+};
+
+const tdDetalleExpandido = {
+  ...td,
+  padding: "0 9px 12px",
+  background: "linear-gradient(180deg, rgba(224, 242, 254, 0.28), rgba(255, 255, 255, 0.96))",
+};
+
+const detallePanelCompleto = {
+  width: "100%",
+  boxSizing: "border-box",
+  border: "1px solid #bae6fd",
+  borderRadius: "14px",
+  padding: "12px",
+  background: "rgba(248, 250, 252, 0.92)",
+  boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.85)",
+};
+
+const detallePanelHeader = {
+  display: "flex",
+  justifyContent: "space-between",
+  gap: "10px",
+  alignItems: "center",
+  flexWrap: "wrap",
+  marginBottom: "10px",
+  color: "#075985",
+};
+
+const detalleGridCompleto = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))",
+  gap: "8px",
 };
 
 const tdAccion = {
@@ -528,6 +587,18 @@ const summary = {
   fontWeight: 700,
 };
 
+const botonDetalle = {
+  border: "1px solid #7dd3fc",
+  background: "#e0f7ff",
+  color: "#0369a1",
+  borderRadius: "999px",
+  padding: "6px 10px",
+  fontSize: "12px",
+  fontWeight: 800,
+  cursor: "pointer",
+  whiteSpace: "nowrap",
+};
+
 const detalleGrid = {
   display: "grid",
   gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))",
@@ -542,6 +613,8 @@ const dato = {
   padding: "7px",
   display: "grid",
   gap: "2px",
+  minWidth: 0,
+  overflowWrap: "anywhere",
 };
 
 const badgeBase = {
@@ -643,4 +716,6 @@ const alertaTexto = {
   fontWeight: "bold",
   margin: "0 0 10px",
 };
+
+
 
