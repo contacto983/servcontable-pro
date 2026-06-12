@@ -3,6 +3,22 @@ import { crearEmpresa, listarEmpresas } from "../services/empresaService";
 
 const LOGO_SRC = "/servcontable-logo.png";
 
+const EMPRESA_INICIAL = {
+  razon_social: "",
+  rut: "",
+  giro: "",
+  regimen_tributario: "14D3 Pro Pyme General",
+  direccion: "",
+  comuna: "",
+  ciudad: "",
+  telefono: "",
+  correo: "",
+  descripcion_actividad: "",
+  rut_representante: "",
+  representante_legal: "",
+  correo_representante: "",
+  telefono_representante: "",
+};
 
 export default function SelectorEmpresaModulo({
   usuario,
@@ -22,15 +38,7 @@ export default function SelectorEmpresaModulo({
   const esUsuarioDemo = usuario?.demo === true;
   const puedeCrearEmpresa = administradorSistema && (!esUsuarioDemo || empresas.length === 0);
 
-  const [nuevaEmpresa, setNuevaEmpresa] = useState({
-    razon_social: "",
-    rut: "",
-    giro: "",
-    regimen_tributario: "14D3 Pro Pyme General",
-    direccion: "",
-    comuna: "",
-    ciudad: "",
-  });
+  const [nuevaEmpresa, setNuevaEmpresa] = useState(EMPRESA_INICIAL);
 
   useEffect(() => {
     cargarEmpresas();
@@ -115,15 +123,7 @@ export default function SelectorEmpresaModulo({
       }
 
       setMostrarCrearEmpresa(false);
-      setNuevaEmpresa({
-        razon_social: "",
-        rut: "",
-        giro: "",
-        regimen_tributario: "14D3 Pro Pyme General",
-        direccion: "",
-        comuna: "",
-        ciudad: "",
-      });
+      setNuevaEmpresa(EMPRESA_INICIAL);
       setMensaje("Empresa creada correctamente.");
     } catch (err) {
       setError(err.message);
@@ -194,6 +194,15 @@ export default function SelectorEmpresaModulo({
                   {empresaSeleccionada.razon_social || empresaSeleccionada.nombre || "Empresa"}
                 </strong>
                 <span>RUT: {empresaSeleccionada.rut || "Sin RUT registrado"}</span>
+                {(empresaSeleccionada.correo || empresaSeleccionada.telefono) && (
+                  <span>
+                    Contacto: {empresaSeleccionada.correo || "Sin correo"}
+                    {empresaSeleccionada.telefono ? ` / ${empresaSeleccionada.telefono}` : ""}
+                  </span>
+                )}
+                {empresaSeleccionada.representante_legal && (
+                  <span>Representante: {empresaSeleccionada.representante_legal}</span>
+                )}
                 <span>
                   Régimen: {empresaSeleccionada.regimen_tributario || empresaSeleccionada.regimen || "No indicado"}
                 </span>
@@ -255,6 +264,22 @@ export default function SelectorEmpresaModulo({
                   <CampoEmpresa label="Dirección" campo="direccion" valor={nuevaEmpresa.direccion} setNuevaEmpresa={setNuevaEmpresa} />
                   <CampoEmpresa label="Comuna" campo="comuna" valor={nuevaEmpresa.comuna} setNuevaEmpresa={setNuevaEmpresa} />
                   <CampoEmpresa label="Ciudad" campo="ciudad" valor={nuevaEmpresa.ciudad} setNuevaEmpresa={setNuevaEmpresa} />
+                  <CampoEmpresa label="Telefono empresa" campo="telefono" valor={nuevaEmpresa.telefono} setNuevaEmpresa={setNuevaEmpresa} />
+                  <CampoEmpresa label="Correo empresa" campo="correo" valor={nuevaEmpresa.correo} setNuevaEmpresa={setNuevaEmpresa} />
+                  <CampoEmpresa
+                    label="Descripcion de la actividad"
+                    campo="descripcion_actividad"
+                    valor={nuevaEmpresa.descripcion_actividad}
+                    setNuevaEmpresa={setNuevaEmpresa}
+                    multilinea
+                    anchoCompleto
+                  />
+
+                  <div style={separadorFormulario}>Representante legal</div>
+                  <CampoEmpresa label="RUT representante" campo="rut_representante" valor={nuevaEmpresa.rut_representante} setNuevaEmpresa={setNuevaEmpresa} />
+                  <CampoEmpresa label="Nombre representante" campo="representante_legal" valor={nuevaEmpresa.representante_legal} setNuevaEmpresa={setNuevaEmpresa} />
+                  <CampoEmpresa label="Correo representante" campo="correo_representante" valor={nuevaEmpresa.correo_representante} setNuevaEmpresa={setNuevaEmpresa} />
+                  <CampoEmpresa label="Telefono representante" campo="telefono_representante" valor={nuevaEmpresa.telefono_representante} setNuevaEmpresa={setNuevaEmpresa} />
                 </div>
 
                 <button type="button" style={botonGuardarEmpresa} onClick={guardarNuevaEmpresa}>
@@ -273,15 +298,24 @@ export default function SelectorEmpresaModulo({
   );
 }
 
-function CampoEmpresa({ label, campo, valor, setNuevaEmpresa }) {
+function CampoEmpresa({
+  label,
+  campo,
+  valor,
+  setNuevaEmpresa,
+  multilinea = false,
+  anchoCompleto = false,
+}) {
+  const props = {
+    style: multilinea ? { ...input, minHeight: "58px", resize: "vertical" } : input,
+    value: valor,
+    onChange: (e) => setNuevaEmpresa((actual) => ({ ...actual, [campo]: e.target.value })),
+  };
+
   return (
-    <div>
+    <div style={anchoCompleto ? campoAnchoCompleto : undefined}>
       <label style={labelEstilo}>{label}</label>
-      <input
-        style={input}
-        value={valor}
-        onChange={(e) => setNuevaEmpresa((actual) => ({ ...actual, [campo]: e.target.value }))}
-      />
+      {multilinea ? <textarea {...props} /> : <input {...props} />}
     </div>
   );
 }
@@ -326,7 +360,7 @@ const contenido = {
 
 const card = {
   width: "100%",
-  maxWidth: "560px",
+  maxWidth: "660px",
   background: "rgba(255,255,255,0.97)",
   borderRadius: "22px",
   padding: "24px",
@@ -519,9 +553,23 @@ const tituloCrearEmpresa = {
 
 const gridFormulario = {
   display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+  gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))",
   gap: "9px",
   marginBottom: "10px",
+};
+
+const campoAnchoCompleto = {
+  gridColumn: "1 / -1",
+};
+
+const separadorFormulario = {
+  ...campoAnchoCompleto,
+  color: "#0369a1",
+  fontWeight: "bold",
+  fontSize: "14px",
+  borderTop: "1px solid #dbeafe",
+  paddingTop: "10px",
+  marginTop: "2px",
 };
 
 const botonGuardarEmpresa = {

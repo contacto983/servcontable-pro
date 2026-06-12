@@ -6,6 +6,22 @@ import {
   obtenerEmpresaActiva,
 } from "../services/empresaService";
 
+const FORMULARIO_EMPRESA_INICIAL = {
+  rut: "",
+  razon_social: "",
+  giro: "",
+  direccion: "",
+  comuna: "",
+  ciudad: "",
+  regimen_tributario: "14D3 Pro Pyme General",
+  telefono: "",
+  correo: "",
+  descripcion_actividad: "",
+  rut_representante: "",
+  representante_legal: "",
+  correo_representante: "",
+  telefono_representante: "",
+};
 
 export default function Empresas({ alSeleccionarEmpresa }) {
   const administradorSistema = true;
@@ -15,15 +31,7 @@ export default function Empresas({ alSeleccionarEmpresa }) {
   const [mensaje, setMensaje] = useState("");
   const [error, setError] = useState("");
 
-  const [formulario, setFormulario] = useState({
-    rut: "",
-    razon_social: "",
-    giro: "",
-    direccion: "",
-    comuna: "",
-    ciudad: "",
-    regimen_tributario: "14D3 Pro Pyme General",
-  });
+  const [formulario, setFormulario] = useState(FORMULARIO_EMPRESA_INICIAL);
 
   useEffect(() => {
     cargarEmpresas();
@@ -55,15 +63,7 @@ export default function Empresas({ alSeleccionarEmpresa }) {
 
       const data = await crearEmpresa(formulario);
       setMensaje(data.mensaje || "Empresa creada correctamente");
-      setFormulario({
-        rut: "",
-        razon_social: "",
-        giro: "",
-        direccion: "",
-        comuna: "",
-        ciudad: "",
-        regimen_tributario: "14D3 Pro Pyme General",
-      });
+      setFormulario(FORMULARIO_EMPRESA_INICIAL);
       await cargarEmpresas();
     } catch (err) {
       setError(err.message);
@@ -174,6 +174,73 @@ export default function Empresas({ alSeleccionarEmpresa }) {
               <option>Sin regimen definido</option>
             </select>
 
+            <div style={separadorFormulario}>Datos de contacto</div>
+
+            <label style={label}>Telefono empresa</label>
+            <input
+              style={input}
+              name="telefono"
+              value={formulario.telefono}
+              onChange={manejarCambio}
+              placeholder="+56 9 1234 5678"
+            />
+
+            <label style={label}>Correo empresa</label>
+            <input
+              style={input}
+              name="correo"
+              value={formulario.correo}
+              onChange={manejarCambio}
+              placeholder="contacto@empresa.cl"
+            />
+
+            <label style={label}>Descripcion de la actividad</label>
+            <textarea
+              style={textarea}
+              name="descripcion_actividad"
+              value={formulario.descripcion_actividad}
+              onChange={manejarCambio}
+              placeholder="Detalle breve de la actividad comercial"
+            />
+
+            <div style={separadorFormulario}>Representante legal</div>
+
+            <label style={label}>RUT representante</label>
+            <input
+              style={input}
+              name="rut_representante"
+              value={formulario.rut_representante}
+              onChange={manejarCambio}
+              placeholder="12.345.678-9"
+            />
+
+            <label style={label}>Nombre representante</label>
+            <input
+              style={input}
+              name="representante_legal"
+              value={formulario.representante_legal}
+              onChange={manejarCambio}
+              placeholder="Nombre completo"
+            />
+
+            <label style={label}>Correo representante</label>
+            <input
+              style={input}
+              name="correo_representante"
+              value={formulario.correo_representante}
+              onChange={manejarCambio}
+              placeholder="representante@empresa.cl"
+            />
+
+            <label style={label}>Telefono representante</label>
+            <input
+              style={input}
+              name="telefono_representante"
+              value={formulario.telefono_representante}
+              onChange={manejarCambio}
+              placeholder="+56 9 1234 5678"
+            />
+
             <button style={boton} type="submit">
               Guardar empresa
             </button>
@@ -190,6 +257,8 @@ export default function Empresas({ alSeleccionarEmpresa }) {
                 <th style={th}>Razon social</th>
                 <th style={th}>Regimen</th>
                 <th style={th}>Ciudad</th>
+                <th style={th}>Contacto</th>
+                <th style={th}>Representante</th>
                 <th style={th}>Accion</th>
               </tr>
             </thead>
@@ -204,6 +273,14 @@ export default function Empresas({ alSeleccionarEmpresa }) {
                     <td style={td}>{empresa.razon_social}</td>
                     <td style={td}>{empresa.regimen_tributario}</td>
                     <td style={td}>{empresa.ciudad}</td>
+                    <td style={td}>
+                      <div>{empresa.correo || "-"}</div>
+                      <small style={textoSecundario}>{empresa.telefono || ""}</small>
+                    </td>
+                    <td style={td}>
+                      <div>{empresa.representante_legal || "-"}</div>
+                      <small style={textoSecundario}>{empresa.rut_representante || ""}</small>
+                    </td>
                     <td style={tdAccion}>
                       <button
                         style={activa ? botonActivo : botonSeleccionar}
@@ -220,7 +297,7 @@ export default function Empresas({ alSeleccionarEmpresa }) {
 
               {empresas.length === 0 && (
                 <tr>
-                  <td style={td} colSpan="5">
+                  <td style={td} colSpan="7">
                     No hay empresas asignadas a tu usuario.
                   </td>
                 </tr>
@@ -306,6 +383,20 @@ const input = {
   boxSizing: "border-box",
 };
 
+const textarea = {
+  ...input,
+  minHeight: "72px",
+  resize: "vertical",
+};
+
+const separadorFormulario = {
+  color: "#0369a1",
+  fontWeight: "bold",
+  borderTop: "1px solid #dbeafe",
+  paddingTop: "12px",
+  marginTop: "14px",
+};
+
 const boton = {
   width: "100%",
   marginTop: "18px",
@@ -342,6 +433,12 @@ const td = {
   padding: "12px",
   borderBottom: "1px solid #e2e8f0",
   color: "#1e293b",
+};
+
+const textoSecundario = {
+  color: "#64748b",
+  display: "block",
+  marginTop: "3px",
 };
 
 const tdAccion = {

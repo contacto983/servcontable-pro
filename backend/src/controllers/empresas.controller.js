@@ -5,6 +5,19 @@ const {
   asignarUsuarioEmpresa,
 } = require("../helpers/auth.helper");
 
+async function asegurarColumnasEmpresas(client) {
+  await client.query(`
+    ALTER TABLE empresas
+      ADD COLUMN IF NOT EXISTS telefono VARCHAR(80),
+      ADD COLUMN IF NOT EXISTS correo VARCHAR(180),
+      ADD COLUMN IF NOT EXISTS descripcion_actividad TEXT,
+      ADD COLUMN IF NOT EXISTS rut_representante VARCHAR(30),
+      ADD COLUMN IF NOT EXISTS representante_legal VARCHAR(180),
+      ADD COLUMN IF NOT EXISTS correo_representante VARCHAR(180),
+      ADD COLUMN IF NOT EXISTS telefono_representante VARCHAR(80)
+  `);
+}
+
 async function crearEmpresa(req, res) {
   const client = await pool.connect();
   let transaccionIniciada = false;
@@ -18,6 +31,13 @@ async function crearEmpresa(req, res) {
       comuna,
       ciudad,
       regimen_tributario,
+      telefono,
+      correo,
+      descripcion_actividad,
+      rut_representante,
+      representante_legal,
+      correo_representante,
+      telefono_representante,
     } = req.body;
 
     if (!rut || !razon_social) {
@@ -26,29 +46,29 @@ async function crearEmpresa(req, res) {
       });
     }
 
-    if (req.usuario?.demo) {
-      const empresasDemo = await client.query(
-        `SELECT COUNT(*)::int AS total
-         FROM usuarios_empresas
-         WHERE usuario_id = $1`,
-        [req.usuario.id]
-      );
-
-      const totalEmpresasDemo = Number(empresasDemo.rows[0]?.total || 0);
-      if (totalEmpresasDemo >= 1) {
-        return res.status(403).json({
-          error: "La demo permite trabajar solo con 1 empresa. Para agregar mas empresas debes contratar el plan PRO.",
-        });
-      }
-    }
-
+    await asegurarColumnasEmpresas(client);
     await client.query("BEGIN");
     transaccionIniciada = true;
 
     const nuevaEmpresa = await client.query(
       `INSERT INTO empresas
-       (rut, razon_social, giro, direccion, comuna, ciudad, regimen_tributario)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       (
+         rut,
+         razon_social,
+         giro,
+         direccion,
+         comuna,
+         ciudad,
+         regimen_tributario,
+         telefono,
+         correo,
+         descripcion_actividad,
+         rut_representante,
+         representante_legal,
+         correo_representante,
+         telefono_representante
+       )
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
        RETURNING *`,
       [
         rut,
@@ -58,6 +78,13 @@ async function crearEmpresa(req, res) {
         comuna || "",
         ciudad || "",
         regimen_tributario || "",
+        telefono || "",
+        correo || "",
+        descripcion_actividad || "",
+        rut_representante || "",
+        representante_legal || "",
+        correo_representante || "",
+        telefono_representante || "",
       ]
     );
 
@@ -91,6 +118,7 @@ async function crearEmpresa(req, res) {
 
 async function listarEmpresas(req, res) {
   try {
+    await asegurarColumnasEmpresas(pool);
     const empresas = await obtenerEmpresasPermitidas(pool, req.usuario);
 
     return res.json({
@@ -110,4 +138,3 @@ module.exports = {
   crearEmpresa,
   listarEmpresas,
 };
-
