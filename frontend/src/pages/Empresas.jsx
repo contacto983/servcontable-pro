@@ -2,8 +2,11 @@ import { useEffect, useState } from "react";
 import {
   crearEmpresa,
   listarEmpresas,
+  actualizarEmpresa,
+  eliminarEmpresa,
   guardarEmpresaActiva,
   obtenerEmpresaActiva,
+  eliminarEmpresaActiva,
 } from "../services/empresaService";
 
 const FORMULARIO_EMPRESA_INICIAL = {
@@ -23,6 +26,25 @@ const FORMULARIO_EMPRESA_INICIAL = {
   telefono_representante: "",
 };
 
+function empresaAFormulario(empresa) {
+  return {
+    rut: empresa?.rut || "",
+    razon_social: empresa?.razon_social || "",
+    giro: empresa?.giro || "",
+    direccion: empresa?.direccion || "",
+    comuna: empresa?.comuna || "",
+    ciudad: empresa?.ciudad || "",
+    regimen_tributario: empresa?.regimen_tributario || "14D3 Pro Pyme General",
+    telefono: empresa?.telefono || "",
+    correo: empresa?.correo || "",
+    descripcion_actividad: empresa?.descripcion_actividad || "",
+    rut_representante: empresa?.rut_representante || "",
+    representante_legal: empresa?.representante_legal || "",
+    correo_representante: empresa?.correo_representante || "",
+    telefono_representante: empresa?.telefono_representante || "",
+  };
+}
+
 export default function Empresas({ alSeleccionarEmpresa }) {
   const administradorSistema = true;
 
@@ -32,6 +54,7 @@ export default function Empresas({ alSeleccionarEmpresa }) {
   const [error, setError] = useState("");
 
   const [formulario, setFormulario] = useState(FORMULARIO_EMPRESA_INICIAL);
+  const [empresaEditandoId, setEmpresaEditandoId] = useState(null);
 
   useEffect(() => {
     cargarEmpresas();
@@ -61,9 +84,69 @@ export default function Empresas({ alSeleccionarEmpresa }) {
       setMensaje("");
       setError("");
 
-      const data = await crearEmpresa(formulario);
-      setMensaje(data.mensaje || "Empresa creada correctamente");
+      const data = empresaEditandoId
+        ? await actualizarEmpresa(empresaEditandoId, formulario)
+        : await crearEmpresa(formulario);
+
+      setMensaje(
+        data.mensaje ||
+          (empresaEditandoId
+            ? "Empresa actualizada correctamente"
+            : "Empresa creada correctamente")
+      );
+
+      if (empresaEditandoId && empresaActiva?.id === empresaEditandoId && data.empresa) {
+        guardarEmpresaActiva(data.empresa);
+        setEmpresaActiva(data.empresa);
+      }
+
       setFormulario(FORMULARIO_EMPRESA_INICIAL);
+      setEmpresaEditandoId(null);
+      await cargarEmpresas();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  function editarEmpresa(empresa) {
+    setMensaje("");
+    setError("");
+    setEmpresaEditandoId(empresa.id);
+    setFormulario(empresaAFormulario(empresa));
+  }
+
+  function cancelarEdicion() {
+    setEmpresaEditandoId(null);
+    setFormulario(FORMULARIO_EMPRESA_INICIAL);
+    setMensaje("");
+    setError("");
+  }
+
+  async function manejarEliminarEmpresa(empresa) {
+    const confirma = window.confirm(
+      `Eliminar empresa ${empresa.razon_social}?\n\nLa empresa dejara de aparecer en el sistema. Esta accion no elimina los registros contables historicos.`
+    );
+
+    if (!confirma) {
+      return;
+    }
+
+    try {
+      setMensaje("");
+      setError("");
+
+      const data = await eliminarEmpresa(empresa.id);
+
+      if (empresaActiva?.id === empresa.id) {
+        eliminarEmpresaActiva();
+        setEmpresaActiva(null);
+      }
+
+      if (empresaEditandoId === empresa.id) {
+        cancelarEdicion();
+      }
+
+      setMensaje(data.mensaje || "Empresa eliminada correctamente");
       await cargarEmpresas();
     } catch (err) {
       setError(err.message);
@@ -105,7 +188,9 @@ export default function Empresas({ alSeleccionarEmpresa }) {
       <div style={administradorSistema ? layout : layoutSoloTabla}>
         {administradorSistema && (
           <form style={formularioEstilo} onSubmit={manejarSubmit}>
-            <h2 style={tituloSeccion}>Crear empresa</h2>
+            <h2 style={tituloSeccion}>
+              {empresaEditandoId ? "Editar empresa" : "Crear empresa"}
+            </h2>
 
             <label style={label}>RUT</label>
             <input
@@ -241,9 +326,17 @@ export default function Empresas({ alSeleccionarEmpresa }) {
               placeholder="+56 9 1234 5678"
             />
 
-            <button style={boton} type="submit">
-              Guardar empresa
-            </button>
+            <div style={accionesFormulario}>
+              <button style={boton} type="submit">
+                {empresaEditandoId ? "Actualizar empresa" : "Guardar empresa"}
+              </button>
+
+              {empresaEditandoId && (
+                <button style={botonCancelar} type="button" onClick={cancelarEdicion}>
+                  Cancelar edicion
+                </button>
+              )}
+            </div>
           </form>
         )}
 
@@ -282,14 +375,34 @@ export default function Empresas({ alSeleccionarEmpresa }) {
                       <small style={textoSecundario}>{empresa.rut_representante || ""}</small>
                     </td>
                     <td style={tdAccion}>
-                      <button
-                        style={activa ? botonActivo : botonSeleccionar}
-                        title={activa ? "Empresa activa" : "Seleccionar empresa"}
-                        aria-label={activa ? "Empresa activa" : "Seleccionar empresa"}
-                        onClick={() => seleccionarEmpresa(empresa)}
-                      >
-                        {activa ? "\u2713" : "\u279C"}
-                      </button>
+                      <div style={accionesTabla}>
+                        <button
+                          style={activa ? botonActivo : botonSeleccionar}
+                          title={activa ? "Empresa activa" : "Seleccionar empresa"}
+                          aria-label={activa ? "Empresa activa" : "Seleccionar empresa"}
+                          onClick={() => seleccionarEmpresa(empresa)}
+                        >
+                          {activa ? "\u2713" : "\u279C"}
+                        </button>
+
+                        <button
+                          style={botonEditar}
+                          title="Editar empresa"
+                          aria-label="Editar empresa"
+                          onClick={() => editarEmpresa(empresa)}
+                        >
+                          {"\u270E"}
+                        </button>
+
+                        <button
+                          style={botonEliminar}
+                          title="Eliminar empresa"
+                          aria-label="Eliminar empresa"
+                          onClick={() => manejarEliminarEmpresa(empresa)}
+                        >
+                          {"\u2715"}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -409,6 +522,19 @@ const boton = {
   cursor: "pointer",
 };
 
+const accionesFormulario = {
+  display: "grid",
+  gap: "10px",
+};
+
+const botonCancelar = {
+  ...boton,
+  marginTop: 0,
+  background: "white",
+  color: "#0369a1",
+  border: "1px solid #38bdf8",
+};
+
 const tablaBox = {
   background: "white",
   borderRadius: "18px",
@@ -447,6 +573,13 @@ const tdAccion = {
   whiteSpace: "nowrap",
 };
 
+const accionesTabla = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: "6px",
+};
+
 const botonAccionBase = {
   color: "white",
   border: "none",
@@ -471,6 +604,16 @@ const botonSeleccionar = {
 const botonActivo = {
   ...botonAccionBase,
   background: "linear-gradient(135deg, #10b981, #06b6d4)",
+};
+
+const botonEditar = {
+  ...botonAccionBase,
+  background: "linear-gradient(135deg, #0284c7, #22d3ee)",
+};
+
+const botonEliminar = {
+  ...botonAccionBase,
+  background: "linear-gradient(135deg, #ef4444, #f97316)",
 };
 
 const ok = {

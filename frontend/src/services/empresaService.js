@@ -44,6 +44,46 @@ export async function listarEmpresas() {
   return data;
 }
 
+export async function actualizarEmpresa(id, datosEmpresa) {
+  const token = obtenerToken();
+
+  const respuesta = await fetch(`${API_URL}/empresas/${id}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(datosEmpresa),
+  });
+
+  const data = await respuesta.json();
+
+  if (!respuesta.ok) {
+    throw new Error(data.error || "Error al actualizar empresa");
+  }
+
+  return data;
+}
+
+export async function eliminarEmpresa(id) {
+  const token = obtenerToken();
+
+  const respuesta = await fetch(`${API_URL}/empresas/${id}`, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  const data = await respuesta.json();
+
+  if (!respuesta.ok) {
+    throw new Error(data.error || "Error al eliminar empresa");
+  }
+
+  return data;
+}
+
 export function guardarEmpresaActiva(empresa) {
   sessionStorage.setItem("empresaActiva", JSON.stringify(empresa));
   localStorage.removeItem("empresaActiva");
