@@ -8,6 +8,7 @@ const {
   obtenerSesion,
   listarUsuarios,
   crearUsuarioCliente,
+  actualizarUsuarioCliente,
   cambiarEstadoUsuario,
   resetearPasswordUsuario,
   solicitarRecuperacionPassword,
@@ -30,6 +31,12 @@ router.post(
   verificarToken,
   exigirAdministradorUsuarios,
   crearUsuarioCliente
+);
+router.patch(
+  "/usuarios/:id",
+  verificarToken,
+  exigirAdministradorUsuarios,
+  actualizarUsuarioCliente
 );
 router.patch(
   "/usuarios/:id/estado",

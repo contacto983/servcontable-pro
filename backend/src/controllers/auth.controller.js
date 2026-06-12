@@ -10,16 +10,7 @@ const {
   obtenerEmpresasPermitidas,
   asignarUsuarioEmpresa,
 } = require("../helpers/auth.helper");
-const {
-  asegurarEsquemaSuscripcion,
-  construirSuscripcionPublica,
-} = require("../helpers/suscripcion.helper");
-const {
-  asegurarEsquemaDemo,
-  asegurarEmpresaDemo,
-  construirDemoPublica,
-  formatoFechaDemo,
-} = require("../helpers/demo.helper");
+const { registrarAuditoria } = require("../helpers/auditoria.helper");
 
 function registroPublicoHabilitado() {
   return process.env.ALLOW_PUBLIC_REGISTRATION === "true";
@@ -73,6 +64,34 @@ function normalizarEmail(email) {
   return String(email || "").trim().toLowerCase();
 }
 
+function normalizarRolEmpresa(rolEmpresa = "") {
+  const valor = String(rolEmpresa || "").trim().toLowerCase();
+
+  if (["admin", "administrador"].includes(valor)) {
+    return "admin";
+  }
+
+  return "usuario";
+}
+
+function normalizarActivo(valor, valorActual = true) {
+  if (typeof valor === "boolean") {
+    return valor;
+  }
+
+  const texto = String(valor ?? "").trim().toLowerCase();
+
+  if (["true", "1", "si", "sÃ­", "activo"].includes(texto)) {
+    return true;
+  }
+
+  if (["false", "0", "no", "inactivo"].includes(texto)) {
+    return false;
+  }
+
+  return Boolean(valorActual);
+}
+
 function limiteRecuperacionExcedido(req, email) {
   const ventanaMs = 15 * 60 * 1000;
   const maxIntentos = 3;
@@ -106,9 +125,7 @@ function construirUrlReset(req, token) {
   return `${base}?resetToken=${encodeURIComponent(token)}`;
 }
 
-function datosUsuarioPublico(usuario, empresas = [], opciones = {}) {
-  const demoInfo = construirDemoPublica({ ...usuario, demo: opciones.demo === true });
-
+function datosUsuarioPublico(usuario, empresas = []) {
   return {
     id: usuario.id,
     nombre: usuario.nombre,
@@ -116,8 +133,6 @@ function datosUsuarioPublico(usuario, empresas = [], opciones = {}) {
     rol: usuario.rol,
     activo: usuario.activo,
     empresas,
-    suscripcion: construirSuscripcionPublica(usuario, opciones),
-    ...(demoInfo ? { demo: true, demo_info: demoInfo } : {}),
   };
 }
 
@@ -135,8 +150,6 @@ function datosDemo() {
 
 async function registrarUsuario(req, res) {
   try {
-    await asegurarEsquemaSuscripcion(pool);
-
     const { nombre, email, password } = req.body;
 
     if (!nombre || !email || !password) {
@@ -195,9 +208,6 @@ async function registrarUsuario(req, res) {
 
 async function loginUsuario(req, res) {
   try {
-    await asegurarEsquemaSuscripcion(pool);
-    await asegurarEsquemaDemo(pool);
-
     const { email, password } = req.body;
 
     if (!email || !password) {
@@ -209,11 +219,7 @@ async function loginUsuario(req, res) {
     const emailNormalizado = String(email).trim().toLowerCase();
 
     const resultado = await pool.query(
-      `SELECT u.*,
-              (u.demo_vence IS NOT NULL AND u.demo_vence < CURRENT_DATE) AS demo_vencido,
-              GREATEST(COALESCE(u.demo_vence, CURRENT_DATE) - CURRENT_DATE, 0)::int AS demo_dias_restantes
-       FROM usuarios u
-       WHERE u.email = $1 AND u.activo = true`,
+      "SELECT * FROM usuarios WHERE email = $1 AND activo = true",
       [emailNormalizado]
     );
 
@@ -236,27 +242,13 @@ async function loginUsuario(req, res) {
       });
     }
 
-    const esUsuarioDemo = normalizarRol(usuario.rol) === "usuario_demo" || usuario.demo_activo === true;
-
-    if (esUsuarioDemo && (!usuario.demo_activo || usuario.demo_vencido)) {
-      return res.status(403).json({
-        error: usuario.demo_vencido
-          ? `Tu demo vencio el ${formatoFechaDemo(usuario.demo_vence)}. Contrata el plan para continuar.`
-          : "Tu demo ya no esta activa.",
-      });
-    }
-
     const usuarioToken = {
       id: usuario.id,
       email: usuario.email,
       rol: usuario.rol,
-      ...(esUsuarioDemo ? { demo: true } : {}),
     };
 
-    const empresasPermitidas = await obtenerEmpresasPermitidas(pool, usuarioToken);
-    const empresas = esUsuarioDemo
-      ? empresasPermitidas.slice(0, Number(usuario.demo_empresa_limite || 1))
-      : empresasPermitidas;
+    const empresas = await obtenerEmpresasPermitidas(pool, usuarioToken);
 
     const token = jwt.sign(usuarioToken, obtenerJwtSecret(), {
       expiresIn: "8h",
@@ -265,7 +257,7 @@ async function loginUsuario(req, res) {
     return res.json({
       mensaje: "Login correcto",
       token,
-      usuario: datosUsuarioPublico(usuario, empresas, { demo: esUsuarioDemo }),
+      usuario: datosUsuarioPublico(usuario, empresas),
     });
   } catch (error) {
     console.error("Error al iniciar sesion:", error);
@@ -283,76 +275,83 @@ async function loginDemo(req, res) {
     });
   }
 
-  const emailNormalizado = normalizarEmail(req.body?.email);
-
-  if (!emailNormalizado) {
-    return res.status(400).json({
-      error: "Ingresa el correo autorizado para tu demo.",
-    });
-  }
-
   const client = await pool.connect();
   let transaccionIniciada = false;
 
   try {
-    await asegurarEsquemaDemo(client);
-
-    const resultado = await client.query(
-      `SELECT
-         id,
-         nombre,
-         email,
-         rol,
-         activo,
-         creado_en,
-         suscripcion_estado,
-         suscripcion_plan,
-         suscripcion_inicio,
-         suscripcion_vence,
-         suscripcion_usuarios_adicionales,
-         suscripcion_pago_external_reference,
-         suscripcion_actualizada_en,
-         demo_activo,
-         demo_inicio,
-         demo_vence,
-         demo_empresa_limite,
-         demo_solicitud_id,
-         (demo_vence IS NULL OR demo_vence < CURRENT_DATE) AS demo_vencido,
-         GREATEST(COALESCE(demo_vence, CURRENT_DATE) - CURRENT_DATE, 0)::int AS demo_dias_restantes
-       FROM usuarios
-       WHERE email = $1
-         AND activo = true
-       LIMIT 1`,
-      [emailNormalizado]
-    );
-
-    if (resultado.rows.length === 0 || !resultado.rows[0].demo_activo) {
-      return res.status(403).json({
-        error:
-          "Tu demo aun no esta habilitada. Solicitala al administrador con este correo.",
-      });
-    }
-
-    const usuario = resultado.rows[0];
-
-    if (usuario.demo_vencido) {
-      await client.query(
-        `UPDATE usuarios
-         SET demo_activo = false,
-             suscripcion_estado = 'vencida',
-             suscripcion_actualizada_en = NOW()
-         WHERE id = $1`,
-        [usuario.id]
-      );
-
-      return res.status(403).json({
-        error: `Tu demo vencio el ${formatoFechaDemo(usuario.demo_vence)}. Para continuar, contrata el plan o solicita una extension.`,
-      });
-    }
+    const demo = datosDemo();
 
     await client.query("BEGIN");
     transaccionIniciada = true;
-    await asegurarEmpresaDemo(client, usuario, { nombre: usuario.nombre });
+
+    const passwordHash = await bcrypt.hash(demo.password, 10);
+
+    const usuarioExistente = await client.query(
+      "SELECT id FROM usuarios WHERE email = $1 LIMIT 1",
+      [demo.email]
+    );
+
+    const usuarioResultado =
+      usuarioExistente.rows.length > 0
+        ? await client.query(
+            `UPDATE usuarios
+             SET nombre = $1,
+                 password_hash = $2,
+                 rol = 'admin_cliente',
+                 activo = true
+             WHERE id = $3
+             RETURNING id, nombre, email, rol, activo, creado_en`,
+            [demo.nombre, passwordHash, usuarioExistente.rows[0].id]
+          )
+        : await client.query(
+            `INSERT INTO usuarios (nombre, email, password_hash, rol, activo)
+             VALUES ($1, $2, $3, 'admin_cliente', true)
+             RETURNING id, nombre, email, rol, activo, creado_en`,
+            [demo.nombre, demo.email, passwordHash]
+          );
+
+    const empresaExistente = await client.query(
+      "SELECT id FROM empresas WHERE rut = $1 LIMIT 1",
+      [demo.empresaRut]
+    );
+
+    const datosEmpresa = [
+      demo.empresaRazonSocial,
+      "Servicios demo",
+      "Direccion demo",
+      "Santiago",
+      "Santiago",
+      "14D3 Pro Pyme General",
+    ];
+
+    const empresaResultado =
+      empresaExistente.rows.length > 0
+        ? await client.query(
+            `UPDATE empresas
+             SET razon_social = $1,
+                 giro = $2,
+                 direccion = $3,
+                 comuna = $4,
+                 ciudad = $5,
+                 regimen_tributario = $6,
+                 activa = true
+             WHERE id = $7
+             RETURNING *`,
+            [...datosEmpresa, empresaExistente.rows[0].id]
+          )
+        : await client.query(
+            `INSERT INTO empresas
+             (rut, razon_social, giro, direccion, comuna, ciudad, regimen_tributario, activa)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, true)
+             RETURNING *`,
+            [demo.empresaRut, ...datosEmpresa]
+          );
+
+    const usuario = usuarioResultado.rows[0];
+    const empresa = empresaResultado.rows[0];
+
+    await asignarUsuarioEmpresa(client, usuario.id, empresa.id, "admin");
+
     await client.query("COMMIT");
     transaccionIniciada = false;
 
@@ -363,22 +362,18 @@ async function loginDemo(req, res) {
       demo: true,
     };
 
-    const empresasPermitidas = await obtenerEmpresasPermitidas(pool, usuarioToken);
-    const limiteEmpresas = Number(usuario.demo_empresa_limite || 1);
-    const empresas = empresasPermitidas.slice(0, limiteEmpresas);
-
+    const empresas = await obtenerEmpresasPermitidas(pool, usuarioToken);
     const token = jwt.sign(usuarioToken, obtenerJwtSecret(), {
-      expiresIn: "8h",
+      expiresIn: "4h",
     });
 
     return res.json({
       mensaje: "Demo iniciada correctamente",
       token,
-      usuario: datosUsuarioPublico(
-        { ...usuario, demo_activo: true },
-        empresas,
-        { demo: true }
-      ),
+      usuario: {
+        ...datosUsuarioPublico(usuario, empresas),
+        demo: true,
+      },
     });
   } catch (error) {
     if (transaccionIniciada) {
@@ -397,30 +392,8 @@ async function loginDemo(req, res) {
 
 async function obtenerSesion(req, res) {
   try {
-    await asegurarEsquemaDemo(pool);
-
     const resultado = await pool.query(
-      `SELECT
-         id,
-         nombre,
-         email,
-         rol,
-         activo,
-         creado_en,
-         suscripcion_estado,
-         suscripcion_plan,
-         suscripcion_inicio,
-         suscripcion_vence,
-         suscripcion_usuarios_adicionales,
-         suscripcion_pago_external_reference,
-         suscripcion_actualizada_en,
-         demo_activo,
-         demo_inicio,
-         demo_vence,
-         demo_empresa_limite,
-         demo_solicitud_id,
-         (demo_vence IS NULL OR demo_vence < CURRENT_DATE) AS demo_vencido,
-         GREATEST(COALESCE(demo_vence, CURRENT_DATE) - CURRENT_DATE, 0)::int AS demo_dias_restantes
+      `SELECT id, nombre, email, rol, activo, creado_en
        FROM usuarios
        WHERE id = $1 AND activo = true`,
       [req.usuario.id]
@@ -432,25 +405,13 @@ async function obtenerSesion(req, res) {
       });
     }
 
-    const usuario = resultado.rows[0];
-
-    if (req.usuario?.demo === true && (!usuario.demo_activo || usuario.demo_vencido)) {
-      return res.status(403).json({
-        error: usuario.demo_vencido
-          ? `Tu demo vencio el ${formatoFechaDemo(usuario.demo_vence)}. Contrata el plan para continuar.`
-          : "Tu demo ya no esta activa.",
-      });
-    }
-
-    const empresasPermitidas = await obtenerEmpresasPermitidas(pool, req.usuario);
-    const empresas = req.usuario?.demo === true
-      ? empresasPermitidas.slice(0, Number(usuario.demo_empresa_limite || 1))
-      : empresasPermitidas;
+    const empresas = await obtenerEmpresasPermitidas(pool, req.usuario);
 
     return res.json({
-      usuario: datosUsuarioPublico(usuario, empresas, {
+      usuario: {
+        ...datosUsuarioPublico(resultado.rows[0], empresas),
         demo: req.usuario?.demo === true,
-      }),
+      },
     });
   } catch (error) {
     console.error("Error al obtener sesion:", error);
@@ -548,9 +509,6 @@ async function crearUsuarioCliente(req, res) {
   let transaccionIniciada = false;
 
   try {
-    await asegurarEsquemaSuscripcion(client);
-    await asegurarEsquemaDemo(client);
-
     const { nombre, email, password, rol, empresa_id, rol_empresa } = req.body;
 
     if (!nombre || !email || !password) {
@@ -565,12 +523,6 @@ async function crearUsuarioCliente(req, res) {
     if (!esAdminSistema(req.usuario.rol) && rolNormalizado === "superadmin") {
       return res.status(403).json({
         error: "Solo el administrador del sistema puede crear super administradores",
-      });
-    }
-
-    if (rolNormalizado === "usuario_demo" && !empresaId) {
-      return res.status(400).json({
-        error: "Debe seleccionar la empresa demo asignada",
       });
     }
 
@@ -612,33 +564,13 @@ async function crearUsuarioCliente(req, res) {
 
     await client.query("BEGIN");
     transaccionIniciada = true;
+
     const passwordHash = await bcrypt.hash(password, 10);
-    const esUsuarioDemo = rolNormalizado === "usuario_demo";
     const usuario = await client.query(
-      `INSERT INTO usuarios (
-         nombre,
-         email,
-         password_hash,
-         rol,
-         activo,
-         demo_activo,
-         demo_inicio,
-         demo_vence,
-         demo_empresa_limite
-       )
-       VALUES (
-         $1,
-         $2,
-         $3,
-         $4,
-         true,
-         $5,
-         CASE WHEN $5 THEN CURRENT_DATE ELSE NULL END,
-         CASE WHEN $5 THEN CURRENT_DATE + INTERVAL '30 days' ELSE NULL END,
-         CASE WHEN $5 THEN 1 ELSE 1 END
-       )
-       RETURNING id, nombre, email, rol, activo, creado_en, demo_activo, demo_inicio, demo_vence, demo_empresa_limite`,
-      [nombre, emailNormalizado, passwordHash, rolNormalizado, esUsuarioDemo]
+      `INSERT INTO usuarios (nombre, email, password_hash, rol, activo)
+       VALUES ($1, $2, $3, $4, true)
+       RETURNING id, nombre, email, rol, activo, creado_en`,
+      [nombre, emailNormalizado, passwordHash, rolNormalizado]
     );
 
     if (empresaId) {
@@ -666,6 +598,240 @@ async function crearUsuarioCliente(req, res) {
 
     return res.status(500).json({
       error: "Error interno al crear usuario",
+    });
+  } finally {
+    client.release();
+  }
+}
+
+async function actualizarUsuarioCliente(req, res) {
+  const client = await pool.connect();
+  let transaccionIniciada = false;
+
+  try {
+    const { id } = req.params;
+    const { nombre, email, rol, empresa_id, rol_empresa, activo } = req.body;
+    const usuarioId = Number(id || 0);
+
+    if (!usuarioId) {
+      return res.status(400).json({
+        error: "Usuario invalido",
+      });
+    }
+
+    if (!nombre || !email) {
+      return res.status(400).json({
+        error: "Nombre y correo son obligatorios",
+      });
+    }
+
+    const usuarioActual = await client.query(
+      `SELECT id, nombre, email, rol, activo
+       FROM usuarios
+       WHERE id = $1
+       LIMIT 1`,
+      [usuarioId]
+    );
+
+    if (usuarioActual.rows.length === 0) {
+      return res.status(404).json({
+        error: "Usuario no encontrado",
+      });
+    }
+
+    const usuarioObjetivo = usuarioActual.rows[0];
+    const rolNormalizado = normalizarRol(rol || usuarioObjetivo.rol);
+    const emailNormalizado = normalizarEmail(email);
+    const empresaId = Number(empresa_id || 0) || null;
+    const activoFinal = normalizarActivo(activo, usuarioObjetivo.activo);
+
+    if (!emailNormalizado) {
+      return res.status(400).json({
+        error: "Correo invalido",
+      });
+    }
+
+    if (!esAdminSistema(req.usuario.rol) && rolNormalizado === "superadmin") {
+      return res.status(403).json({
+        error: "Solo el administrador del sistema puede asignar rol de sistema",
+      });
+    }
+
+    if (Number(req.usuario.id) === usuarioId && activoFinal === false) {
+      return res.status(400).json({
+        error: "No puedes desactivar tu propio usuario",
+      });
+    }
+
+    const correoDuplicado = await client.query(
+      `SELECT id
+       FROM usuarios
+       WHERE email = $1
+         AND id <> $2
+       LIMIT 1`,
+      [emailNormalizado, usuarioId]
+    );
+
+    if (correoDuplicado.rows.length > 0) {
+      return res.status(400).json({
+        error: "Ya existe otro usuario con ese correo",
+      });
+    }
+
+    let empresasAdministrables = null;
+
+    if (!esAdminSistema(req.usuario.rol)) {
+      const empresasPermitidas = await obtenerEmpresasPermitidas(client, req.usuario);
+      empresasAdministrables = empresasPermitidas
+        .filter((empresa) => ["admin", "administrador"].includes(empresa.rol_empresa))
+        .map((empresa) => Number(empresa.id));
+
+      const empresasObjetivo = await client.query(
+        `SELECT empresa_id
+         FROM usuarios_empresas
+         WHERE usuario_id = $1
+           AND activo = true`,
+        [usuarioId]
+      );
+
+      const puedeEditarObjetivo =
+        Number(req.usuario.id) === usuarioId ||
+        empresasObjetivo.rows.some((empresa) =>
+          empresasAdministrables.includes(Number(empresa.empresa_id))
+        );
+
+      if (!puedeEditarObjetivo) {
+        return res.status(403).json({
+          error: "No puedes modificar este usuario",
+        });
+      }
+
+      if (!empresaId || !empresasAdministrables.includes(empresaId)) {
+        return res.status(403).json({
+          error: "No puedes asignar usuarios a esta empresa",
+        });
+      }
+    }
+
+    if (empresaId) {
+      const puedeAdministrar = await usuarioPuedeAdministrarEmpresa(
+        client,
+        req.usuario,
+        empresaId
+      );
+
+      if (!puedeAdministrar) {
+        return res.status(403).json({
+          error: "No puedes administrar usuarios de esta empresa",
+        });
+      }
+    }
+
+    await client.query("BEGIN");
+    transaccionIniciada = true;
+
+    const actualizado = await client.query(
+      `UPDATE usuarios
+       SET nombre = $1,
+           email = $2,
+           rol = $3,
+           activo = $4
+       WHERE id = $5
+       RETURNING id, nombre, email, rol, activo, creado_en`,
+      [String(nombre).trim(), emailNormalizado, rolNormalizado, activoFinal, usuarioId]
+    );
+
+    if (rolNormalizado === "superadmin") {
+      await client.query(
+        `UPDATE usuarios_empresas
+         SET activo = false,
+             actualizado_en = NOW()
+         WHERE usuario_id = $1`,
+        [usuarioId]
+      );
+    } else if (empresaId) {
+      if (esAdminSistema(req.usuario.rol)) {
+        await client.query(
+          `UPDATE usuarios_empresas
+           SET activo = false,
+               actualizado_en = NOW()
+           WHERE usuario_id = $1
+             AND empresa_id <> $2`,
+          [usuarioId, empresaId]
+        );
+      } else if (Array.isArray(empresasAdministrables) && empresasAdministrables.length > 0) {
+        await client.query(
+          `UPDATE usuarios_empresas
+           SET activo = false,
+               actualizado_en = NOW()
+           WHERE usuario_id = $1
+             AND empresa_id = ANY($2::int[])
+             AND empresa_id <> $3`,
+          [usuarioId, empresasAdministrables, empresaId]
+        );
+      }
+
+      await asignarUsuarioEmpresa(
+        client,
+        usuarioId,
+        empresaId,
+        normalizarRolEmpresa(
+          rol_empresa || (rolNormalizado === "admin_cliente" ? "admin" : "usuario")
+        )
+      );
+    } else if (esAdminSistema(req.usuario.rol)) {
+      await client.query(
+        `UPDATE usuarios_empresas
+         SET activo = false,
+             actualizado_en = NOW()
+         WHERE usuario_id = $1`,
+        [usuarioId]
+      );
+    }
+
+    await registrarAuditoria({
+      client,
+      req,
+      empresaId,
+      modulo: "Usuarios y accesos",
+      accion: "Actualizar usuario",
+      detalle: `Usuario actualizado: ${emailNormalizado}`,
+      tablaAfectada: "usuarios",
+      registroId: usuarioId,
+      datos: {
+        antes: {
+          nombre: usuarioObjetivo.nombre,
+          email: usuarioObjetivo.email,
+          rol: usuarioObjetivo.rol,
+          activo: usuarioObjetivo.activo,
+        },
+        despues: {
+          nombre: String(nombre).trim(),
+          email: emailNormalizado,
+          rol: rolNormalizado,
+          activo: activoFinal,
+          empresa_id: empresaId,
+          rol_empresa: rol_empresa || null,
+        },
+      },
+    });
+
+    await client.query("COMMIT");
+    transaccionIniciada = false;
+
+    return res.json({
+      mensaje: "Usuario actualizado correctamente",
+      usuario: actualizado.rows[0],
+    });
+  } catch (error) {
+    if (transaccionIniciada) {
+      await client.query("ROLLBACK");
+    }
+
+    console.error("Error al actualizar usuario:", error);
+
+    return res.status(500).json({
+      error: "Error interno al actualizar usuario",
     });
   } finally {
     client.release();
@@ -911,6 +1077,7 @@ module.exports = {
   obtenerSesion,
   listarUsuarios,
   crearUsuarioCliente,
+  actualizarUsuarioCliente,
   cambiarEstadoUsuario,
   resetearPasswordUsuario,
   solicitarRecuperacionPassword,

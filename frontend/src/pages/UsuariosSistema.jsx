@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   listarUsuariosSistema,
   crearUsuarioSistema,
+  actualizarUsuarioSistema,
   cambiarEstadoUsuario,
   resetearPasswordUsuario,
   obtenerUsuarioActual,
@@ -10,7 +11,6 @@ import { listarEmpresas } from "../services/empresaService";
 
 const ROLES_ADMIN_SISTEMA = ["admin", "superadmin", "administrador_sistema"];
 const ROLES_ADMIN_CLIENTE = ["admin_cliente", "cliente_admin"];
-const ROLES_DEMO = ["usuario_demo", "demo", "cliente_demo"];
 
 function rolNormalizado(rol = "") {
   return String(rol || "").trim().toLowerCase();
@@ -30,7 +30,6 @@ function nombreRol(rol = "") {
 
   if (esAdminSistema(rolActual)) return "Administrador sistema";
   if (ROLES_ADMIN_CLIENTE.includes(rolActual)) return "Administrador cliente";
-  if (ROLES_DEMO.includes(rolActual)) return "Usuario demo";
   return "Usuario cliente";
 }
 
@@ -50,6 +49,22 @@ function empresasAsignadas(usuario) {
     .join(", ");
 }
 
+function empresaPrincipal(usuario) {
+  const empresas = Array.isArray(usuario?.empresas) ? usuario.empresas : [];
+
+  return empresas.find((empresa) => empresa?.empresa_id || empresa?.id) || null;
+}
+
+function normalizarRolEmpresa(rolEmpresa = "") {
+  const rol = String(rolEmpresa || "").trim().toLowerCase();
+
+  if (["admin", "administrador", "admin_sistema"].includes(rol)) {
+    return "admin";
+  }
+
+  return "usuario";
+}
+
 export default function UsuariosSistema() {
   const usuarioActual = obtenerUsuarioActual();
   const adminSistema = esAdminSistema(usuarioActual?.rol);
@@ -61,6 +76,7 @@ export default function UsuariosSistema() {
   const [mensaje, setMensaje] = useState("");
   const [error, setError] = useState("");
   const [cargando, setCargando] = useState(false);
+  const [usuarioEditandoId, setUsuarioEditandoId] = useState(null);
 
   const [formulario, setFormulario] = useState({
     nombre: "",
@@ -69,12 +85,12 @@ export default function UsuariosSistema() {
     rol: "usuario_cliente",
     empresa_id: "",
     rol_empresa: "usuario",
+    activo: "true",
   });
 
   const rolesDisponibles = useMemo(() => {
     const roles = [
       { valor: "usuario_cliente", label: "Usuario cliente" },
-      { valor: "usuario_demo", label: "Usuario demo" },
       { valor: "admin_cliente", label: "Administrador cliente" },
     ];
 
@@ -144,6 +160,36 @@ export default function UsuariosSistema() {
     }));
   }
 
+  function limpiarFormulario() {
+    setUsuarioEditandoId(null);
+    setFormulario((actual) => ({
+      ...actual,
+      nombre: "",
+      email: "",
+      password: "",
+      rol: "usuario_cliente",
+      rol_empresa: "usuario",
+      activo: "true",
+    }));
+  }
+
+  function editarUsuario(usuario) {
+    const empresa = empresaPrincipal(usuario);
+
+    setError("");
+    setMensaje("");
+    setUsuarioEditandoId(usuario.id);
+    setFormulario({
+      nombre: usuario.nombre || "",
+      email: usuario.email || "",
+      password: "",
+      rol: rolNormalizado(usuario.rol) || "usuario_cliente",
+      empresa_id: empresa ? String(empresa.empresa_id || empresa.id) : "",
+      rol_empresa: empresa ? normalizarRolEmpresa(empresa.rol_empresa) : "usuario",
+      activo: usuario.activo ? "true" : "false",
+    });
+  }
+
   async function guardarUsuario(e) {
     e.preventDefault();
 
@@ -155,22 +201,26 @@ export default function UsuariosSistema() {
       const datos = {
         nombre: formulario.nombre.trim(),
         email: formulario.email.trim().toLowerCase(),
-        password: formulario.password,
         rol: formulario.rol,
         empresa_id: esSuperadmin ? null : formulario.empresa_id,
         rol_empresa: esSuperadmin ? null : formulario.rol_empresa,
+        activo: formulario.activo === "true",
       };
 
-      await crearUsuarioSistema(datos);
+      if (usuarioEditandoId) {
+        await actualizarUsuarioSistema(usuarioEditandoId, datos);
+        setMensaje("Usuario actualizado correctamente.");
+        limpiarFormulario();
+        await buscarUsuarios();
+        return;
+      }
 
-      setFormulario((actual) => ({
-        ...actual,
-        nombre: "",
-        email: "",
-        password: "",
-        rol: "usuario_cliente",
-        rol_empresa: "usuario",
-      }));
+      await crearUsuarioSistema({
+        ...datos,
+        password: formulario.password,
+      });
+
+      limpiarFormulario();
 
       setMensaje("Usuario creado correctamente. Ya puede ingresar con su correo y clave inicial.");
       await buscarUsuarios();
@@ -233,7 +283,9 @@ export default function UsuariosSistema() {
 
       <div style={gridPrincipal}>
         <form style={card} onSubmit={guardarUsuario}>
-          <h2 style={tituloSeccion}>Crear acceso</h2>
+          <h2 style={tituloSeccion}>
+            {usuarioEditandoId ? "Editar acceso" : "Crear acceso"}
+          </h2>
 
           <div style={gridFormulario}>
             <div>
@@ -259,17 +311,19 @@ export default function UsuariosSistema() {
               />
             </div>
 
-            <div>
-              <label style={label}>Clave inicial</label>
-              <input
-                style={input}
-                name="password"
-                type="password"
-                value={formulario.password}
-                onChange={manejarCambio}
-                placeholder="Minimo 6 caracteres"
-              />
-            </div>
+            {!usuarioEditandoId && (
+              <div>
+                <label style={label}>Clave inicial</label>
+                <input
+                  style={input}
+                  name="password"
+                  type="password"
+                  value={formulario.password}
+                  onChange={manejarCambio}
+                  placeholder="Minimo 6 caracteres"
+                />
+              </div>
+            )}
 
             <div>
               <label style={label}>Rol del sistema</label>
@@ -325,11 +379,34 @@ export default function UsuariosSistema() {
                 </div>
               </>
             )}
+
+            {usuarioEditandoId && (
+              <div>
+                <label style={label}>Estado</label>
+                <select
+                  style={input}
+                  name="activo"
+                  value={formulario.activo}
+                  onChange={manejarCambio}
+                >
+                  <option value="true">Activo</option>
+                  <option value="false">Inactivo</option>
+                </select>
+              </div>
+            )}
           </div>
 
-          <button style={botonGuardar} type="submit">
-            Crear usuario
-          </button>
+          <div style={accionesFormulario}>
+            <button style={botonGuardar} type="submit">
+              {usuarioEditandoId ? "Guardar cambios" : "Crear usuario"}
+            </button>
+
+            {usuarioEditandoId && (
+              <button style={botonCancelar} type="button" onClick={limpiarFormulario}>
+                Cancelar edicion
+              </button>
+            )}
+          </div>
         </form>
 
         <div style={cardInfo}>
@@ -397,6 +474,15 @@ export default function UsuariosSistema() {
                     </span>
                   </td>
                   <td style={tdAccion}>
+                    <button
+                      type="button"
+                      title="Editar usuario"
+                      aria-label="Editar usuario"
+                      style={botonIconoEditar}
+                      onClick={() => editarUsuario(usuario)}
+                    >
+                      {"\u270E"}
+                    </button>
                     <button
                       type="button"
                       title="Cambiar clave"
@@ -512,6 +598,24 @@ const botonGuardar = {
   marginTop: "18px",
 };
 
+const accionesFormulario = {
+  display: "flex",
+  alignItems: "center",
+  gap: "10px",
+  flexWrap: "wrap",
+  marginTop: "18px",
+};
+
+const botonCancelar = {
+  background: "white",
+  color: "#0369a1",
+  border: "1px solid #38bdf8",
+  padding: "13px 18px",
+  borderRadius: "12px",
+  fontWeight: "bold",
+  cursor: "pointer",
+};
+
 const botonBuscar = {
   background: "#0369a1",
   color: "white",
@@ -598,6 +702,11 @@ const botonIconoAzul = {
   alignItems: "center",
   justifyContent: "center",
   fontSize: "15px",
+};
+
+const botonIconoEditar = {
+  ...botonIconoAzul,
+  background: "linear-gradient(135deg, #0284c7, #22d3ee)",
 };
 
 const botonIconoRojo = {

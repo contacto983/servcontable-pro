@@ -147,6 +147,27 @@ export async function crearUsuarioSistema(datosUsuario) {
   return data;
 }
 
+export async function actualizarUsuarioSistema(id, datosUsuario) {
+  const token = obtenerToken();
+
+  const respuesta = await fetch(`${API_URL}/auth/usuarios/${id}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(datosUsuario),
+  });
+
+  const data = await respuesta.json();
+
+  if (!respuesta.ok) {
+    throw new Error(data.error || "Error al actualizar usuario");
+  }
+
+  return data;
+}
+
 export async function cambiarEstadoUsuario(id, activo) {
   const token = obtenerToken();
 
