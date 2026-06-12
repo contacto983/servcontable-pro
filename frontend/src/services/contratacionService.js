@@ -1,7 +1,7 @@
 ﻿import { crearUrlApi } from "./apiConfig";
 
-export async function crearPreferenciaMercadoPago(datosContratacion) {
-  const respuesta = await fetch(crearUrlApi("/pagos-mercadopago/checkout"), {
+export async function crearPagoFlow(datosContratacion) {
+  const respuesta = await fetch(crearUrlApi("/pagos-flow/preferencia"), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -19,7 +19,7 @@ export async function crearPreferenciaMercadoPago(datosContratacion) {
 }
 
 export async function obtenerEstadoContratacion(id) {
-  const respuesta = await fetch(crearUrlApi(`/pagos-mercadopago/contratacion/${id}`));
+  const respuesta = await fetch(crearUrlApi(`/pagos-flow/contratacion/${id}`));
   const data = await respuesta.json();
 
   if (!respuesta.ok) {
@@ -28,4 +28,3 @@ export async function obtenerEstadoContratacion(id) {
 
   return data.contratacion;
 }
-

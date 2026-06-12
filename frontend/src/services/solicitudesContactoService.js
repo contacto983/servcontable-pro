@@ -1,4 +1,4 @@
-import { API_BASE_URL } from "./apiConfig";
+﻿import { API_BASE_URL } from "./apiConfig";
 
 function buscarTokenEnValor(valor) {
   if (!valor) return "";
@@ -98,20 +98,6 @@ export async function listarSolicitudesContacto() {
   return data.solicitudes || [];
 }
 
-export async function listarPagosMercadoPago() {
-  const respuesta = await fetch(`${API_BASE_URL}/pagos-mercadopago`, {
-    method: "GET",
-    headers: headersJson(),
-  });
-
-  const data = await leerRespuestaJson(respuesta);
-
-  if (!respuesta.ok) {
-    throw new Error(data.error || "No se pudieron cargar los pagos de Mercado Pago.");
-  }
-
-  return data.pagos || [];
-}
 
 export async function actualizarSolicitudContacto(id, payload = {}) {
   const respuesta = await fetch(`${API_BASE_URL}/contacto/${id}`, {
@@ -145,3 +131,4 @@ export async function activarDemoSolicitud(id, dias = 30) {
 
   return data;
 }
+

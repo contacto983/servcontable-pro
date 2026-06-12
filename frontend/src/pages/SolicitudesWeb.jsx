@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import {
   activarDemoDesdeSolicitud,
   listarSolicitudesWeb,
@@ -67,20 +67,19 @@ function estaContactado(solicitud) {
 }
 
 function descripcionPago(solicitud) {
-  const pago = solicitud?.pago_mercado_pago || {};
+  const pago = solicitud?.pago_flow || {};
 
   if (solicitud?.fuente === "contacto") {
     return solicitud.mensaje || "Solicitud web registrada";
   }
 
-  if (!solicitud?.mp_payment_id && !pago.id) {
+  if (!solicitud?.flow_order && !pago.flow_order) {
     return "Sin pago confirmado";
   }
 
   return [
-    pago.tipo_pago || "Pago",
+    pago.descripcion_estado || "Flow",
     pago.medio_pago,
-    pago.cuotas ? `${pago.cuotas} cuotas` : "",
   ]
     .filter(Boolean)
     .join(" / ");
@@ -146,7 +145,7 @@ export default function SolicitudesWeb() {
         acc.total += 1;
 
         if (
-          solicitud.fuente === "mercado_pago" &&
+          solicitud.fuente === "flow" &&
           ["activo", "approved", "pagado"].includes(estado)
         ) {
           acc.pagadas += 1;
@@ -161,7 +160,7 @@ export default function SolicitudesWeb() {
         }
 
         if (
-          solicitud.fuente === "mercado_pago" &&
+          solicitud.fuente === "flow" &&
           ["activo", "approved", "pagado"].includes(estado)
         ) {
           acc.totalPagado += Number(solicitud.total || 0);
@@ -266,7 +265,7 @@ export default function SolicitudesWeb() {
                 <th style={th}>Plan</th>
                 <th style={th}>Total</th>
                 <th style={th}>Estado</th>
-                <th style={th}>Pago MP</th>
+                <th style={th}>Pago Flow</th>
                 <th style={th}>Detalle</th>
                 <th style={th}>Accion</th>
               </tr>
@@ -274,7 +273,7 @@ export default function SolicitudesWeb() {
 
             <tbody>
               {solicitudes.map((solicitud) => {
-                const pago = solicitud.pago_mercado_pago || {};
+                const pago = solicitud.pago_flow || {};
                 const contactado = estaContactado(solicitud);
 
                 return (
@@ -317,7 +316,7 @@ export default function SolicitudesWeb() {
                       <strong>
                         {solicitud.fuente === "contacto"
                           ? "Solicitud"
-                          : texto(solicitud.mp_payment_id || pago.id)}
+                          : texto(solicitud.flow_order || pago.flow_order)}
                       </strong>
                       <small style={textoSecundario}>
                         {descripcionPago(solicitud)}
@@ -327,22 +326,22 @@ export default function SolicitudesWeb() {
                       <details>
                         <summary style={summary}>Ver detalle</summary>
                         <div style={detalleGrid}>
-                          <Dato label="Preferencia" valor={solicitud.mp_preference_id} />
-                          <Dato label="Estado MP" valor={solicitud.mp_status || pago.estado} />
+                          <Dato label="Token Flow" valor={solicitud.flow_token} />
+                          <Dato label="Estado Flow" valor={solicitud.flow_status || pago.estado} />
                           <Dato
-                            label="Detalle MP"
-                            valor={solicitud.mp_status_detail || pago.detalle_estado}
+                            label="Detalle Flow"
+                            valor={pago.descripcion_estado || solicitud.flow_status}
                           />
-                          <Dato label="Fecha pago" valor={formatoFecha(pago.fecha_aprobacion)} />
-                          <Dato label="Monto MP" valor={formatoMoneda(pago.monto)} />
-                          <Dato label="Recibido MP" valor={formatoMoneda(pago.monto_recibido)} />
+                          <Dato label="Fecha pago" valor={formatoFecha(pago.fecha_pago)} />
+                          <Dato label="Monto Flow" valor={formatoMoneda(pago.monto)} />
+                          <Dato label="Orden Flow" valor={pago.flow_order || solicitud.flow_order} />
                           <Dato
                             label="Pagador"
-                            valor={pago.pagador?.correo || solicitud.correo}
+                            valor={pago.pagador?.correo || pago.pagador?.nombre || solicitud.correo}
                           />
                           <Dato
                             label="RUT pagador"
-                            valor={pago.pagador?.identificacion_numero}
+                            valor={pago.pagador?.rut || solicitud.rut}
                           />
                           <Dato label="Actualizado" valor={formatoFecha(solicitud.actualizado_en)} />
                           <Dato label="Origen" valor={solicitud.origen} />
@@ -644,3 +643,4 @@ const alertaTexto = {
   fontWeight: "bold",
   margin: "0 0 10px",
 };
+

@@ -1,11 +1,13 @@
-const express = require("express");
+﻿const express = require("express");
 const {
-  crearPreferenciaContratacion,
+  crearPagoContratacion,
+  crearRenovacionSuscripcionFlow,
   obtenerContratacion,
   listarContratacionesWeb,
   actualizarGestionContratacion,
-  recibirWebhookMercadoPago,
-} = require("../controllers/pagosMercadoPago.controller");
+  recibirWebhookFlow,
+  procesarRetornoFlow,
+} = require("../controllers/pagosFlow.controller");
 const {
   verificarToken,
   exigirAdministradorUsuarios,
@@ -13,9 +15,12 @@ const {
 
 const router = express.Router();
 
-router.post("/preferencia", crearPreferenciaContratacion);
-router.post("/checkout", crearPreferenciaContratacion);
-router.post("/webhook", recibirWebhookMercadoPago);
+router.post("/preferencia", crearPagoContratacion);
+router.post("/checkout", crearPagoContratacion);
+router.post("/renovar", verificarToken, crearRenovacionSuscripcionFlow);
+router.post("/webhook", recibirWebhookFlow);
+router.get("/retorno", procesarRetornoFlow);
+router.post("/retorno", procesarRetornoFlow);
 router.get(
   "/contrataciones",
   verificarToken,

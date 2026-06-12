@@ -38,7 +38,7 @@ const saldoVacacionesRoutes = require("./routes/saldoVacaciones.routes");
 const planCuentasBaseRoutes = require("./routes/planCuentasBase.routes");
 const ejerciciosRoutes = require("./routes/ejercicios.routes");
 const auditoriaRoutes = require("./routes/auditoria.routes");
-const pagosMercadoPagoRoutes = require("./routes/pagosMercadoPago.routes");
+const pagosFlowRoutes = require("./routes/pagosFlow.routes");
 const contactoRoutes = require("./routes/contacto.routes");
 
 
@@ -101,7 +101,7 @@ app.use("/api/saldo-vacaciones", saldoVacacionesRoutes);
 app.use("/api/plan-cuentas-base", planCuentasBaseRoutes);
 app.use("/api/ejercicios", ejerciciosRoutes);
 app.use("/api/auditoria", auditoriaRoutes);
-app.use("/api/pagos-mercadopago", pagosMercadoPagoRoutes);
+app.use("/api/pagos-flow", pagosFlowRoutes);
 app.use("/api/contacto", contactoRoutes);
 
 

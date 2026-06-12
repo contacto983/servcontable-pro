@@ -1,13 +1,14 @@
 ﻿import { useEffect, useMemo, useState } from "react";
 import {
-  crearPreferenciaMercadoPago,
+  crearPagoFlow,
   obtenerEstadoContratacion,
 } from "../services/contratacionService";
 
 const LOGO_SRC = "/servcontable-logo.png";
 const DEMO_URL = import.meta.env.VITE_DEMO_URL || "https://demo.servcontablepro.cl";
 const APP_URL = import.meta.env.VITE_APP_URL || "https://app.servcontablepro.cl";
-const WHATSAPP_URL = "https://wa.me/56984508073?text=Hola%2C%20quiero%20contratar%20ServContable%20PRO";
+const WHATSAPP_URL =
+  "https://wa.me/56984508073?text=Hola%2C%20quiero%20contratar%20ServContable%20PRO";
 
 const PRECIOS = {
   mensual: { etiqueta: "Mensual", neto: 16990, descripcion: "+ IVA / mes" },
@@ -88,19 +89,19 @@ export default function Inicio() {
 
     try {
       setCargando(true);
-      setMensaje("Creando link seguro de pago...");
+      setMensaje("Creando pago seguro en Flow...");
       setError("");
 
-      const data = await crearPreferenciaMercadoPago({
+      const data = await crearPagoFlow({
         ...formulario,
         periodicidad,
         acepta_terminos: formulario.aceptaTerminos,
       });
 
-      const linkPago = data.init_point || data.sandbox_init_point;
+      const linkPago = data.checkout_url || data.url;
 
       if (!linkPago) {
-        throw new Error("Mercado Pago no devolvio un link de pago.");
+        throw new Error("Flow no devolvio un link de pago.");
       }
 
       window.location.href = linkPago;
@@ -159,9 +160,9 @@ export default function Inicio() {
           </strong>
           <span>
             {resultadoPago === "exito" &&
-              "Tu contratacion quedara activa cuando Mercado Pago confirme el webhook."}
+              "Tu contratacion quedara activa cuando Flow confirme el webhook."}
             {resultadoPago === "pendiente" &&
-              "Estamos esperando la confirmacion de Mercado Pago."}
+              "Estamos esperando la confirmacion de Flow."}
             {resultadoPago === "error" &&
               "Puedes intentar nuevamente o escribirnos por WhatsApp."}
           </span>
@@ -177,7 +178,7 @@ export default function Inicio() {
           </h1>
           <p style={bajada}>
             Demo disponible para revisar el flujo. La contratacion se paga por
-            Mercado Pago y el plan queda registrado para activacion.
+            Flow y el plan queda registrado para activacion.
           </p>
 
           <div style={botonesHero}>
@@ -186,7 +187,7 @@ export default function Inicio() {
               type="button"
               onClick={() => irAContratacion("mensual")}
             >
-              Contratar plan
+              Contratar plan PRO
             </button>
             <button
               style={botonSecundario}
@@ -195,6 +196,14 @@ export default function Inicio() {
             >
               Ver demo
             </button>
+            <a
+              style={botonWhatsapp}
+              href={WHATSAPP_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              WhatsApp
+            </a>
           </div>
         </section>
 
@@ -239,15 +248,17 @@ export default function Inicio() {
             type="button"
             onClick={() => irAContratacion(periodicidad)}
           >
-            Contratar plan
+            Contratar plan â†’
           </button>
         </section>
       </main>
 
-
       <section style={seccionWeb} id="problema">
-        <h2 style={seccionTitulo}>Qué problema resuelve</h2>
-        <p style={textoPlan}>ServContable PRO ordena contabilidad, remuneraciones e impuestos por empresa, año de trabajo y usuario.</p>
+        <h2 style={seccionTitulo}>QuÃ© problema resuelve</h2>
+        <p style={textoPlan}>
+          ServContable PRO ordena contabilidad, remuneraciones e impuestos por
+          empresa, aÃ±o de trabajo y usuario.
+        </p>
         <div style={gridWeb3}>
           <MiniCard titulo="Menos planillas" texto="Compras, ventas, comprobantes, liquidaciones y reportes quedan conectados." />
           <MiniCard titulo="Control por cliente" texto="Cada cliente administra sus empresas y el administrador revisa accesos, pagos y solicitudes." />
@@ -261,35 +272,49 @@ export default function Inicio() {
           <MiniCard titulo="Contabilidad" texto="Comprobantes, compras, ventas, libro diario, mayor, balance y resultado." />
           <MiniCard titulo="Tributario" texto="Resumen IVA, F29 estimado, retenciones y control de remanente." />
           <MiniCard titulo="Remuneraciones" texto="Trabajadores, haberes, descuentos, liquidaciones, pagos y Previred." />
-          <MiniCard titulo="Gestión" texto="Empresas, usuarios, auditoría, demo y solicitudes web." />
+          <MiniCard titulo="GestiÃ³n" texto="Empresas, usuarios, auditorÃ­a, demo y solicitudes web." />
         </div>
       </section>
 
       <section style={seccionWeb} id="demo">
         <h2 style={seccionTitulo}>Demo</h2>
         <div style={demoLegalBox}>
-          <p style={textoPlan}>El administrador activa el acceso por 30 días, con límite de 1 empresa.</p>
-          <button style={botonPrincipalMini} type="button" onClick={() => window.open(DEMO_URL, "_blank", "noopener,noreferrer")}>Solicitar demo</button>
+          <p style={textoPlan}>
+            El demo es individual por cliente: el interesado solicita acceso con
+            su correo, el administrador lo activa por 30 dÃ­as y queda limitado a
+            1 empresa.
+          </p>
+          <p style={textoPlan}>
+            Al vencer, el sistema bloquea el ingreso demo y muestra un mensaje
+            para solicitar renovaciÃ³n o contratar el plan.
+          </p>
+          <button
+            style={botonPrincipalMini}
+            type="button"
+            onClick={() => window.open(DEMO_URL, "_blank", "noopener,noreferrer")}
+          >
+            Solicitar demo
+          </button>
         </div>
       </section>
 
       <section style={seccionWeb} id="faq">
         <h2 style={seccionTitulo}>Preguntas frecuentes</h2>
         <div style={gridWeb2}>
-          <Pregunta titulo="¿El plan es multiempresa?" texto="Sí. El plan PRO es multiempresa e incluye 1 usuario." />
-          <Pregunta titulo="¿Cuánto dura el demo?" texto="30 días desde la activación del administrador, con límite de 1 empresa." />
-          <Pregunta titulo="¿Cómo se activa el plan?" texto="Mercado Pago confirma el pago por webhook y el sistema registra la contratación para habilitar el acceso." />
-          <Pregunta titulo="¿Cuánto cuesta un usuario adicional?" texto="$3.990 + IVA mensual por usuario adicional." />
+          <Pregunta titulo="Â¿El plan es multiempresa?" texto="SÃ­. El plan PRO es multiempresa e incluye 1 usuario." />
+          <Pregunta titulo="Â¿CuÃ¡nto dura el demo?" texto="30 dÃ­as desde la activaciÃ³n del administrador, con lÃ­mite de 1 empresa." />
+          <Pregunta titulo="Â¿CÃ³mo se activa el plan?" texto="Flow confirma el pago por webhook y el sistema registra la contrataciÃ³n para habilitar el acceso." />
+          <Pregunta titulo="Â¿CuÃ¡nto cuesta un usuario adicional?" texto="$3.990 + IVA mensual por usuario adicional." />
         </div>
       </section>
 
       <section style={seccionWeb} id="legales">
-        <h2 style={seccionTitulo}>Términos y condiciones, privacidad y seguridad</h2>
+        <h2 style={seccionTitulo}>TÃ©rminos y condiciones, privacidad y seguridad</h2>
         <div style={gridWeb4}>
-          <MiniCard titulo="Términos y condiciones" texto="Servicio SaaS de suscripción mensual o anual. El cliente debe ingresar información fidedigna y revisar sus reportes." />
-          <MiniCard titulo="Política de privacidad" texto="Los datos se usan para contratación, activación, facturación, soporte y comunicaciones del servicio." />
-          <MiniCard titulo="Seguridad" texto="Acceso autenticado, roles de usuario, separación por empresa y bloqueo automático de demos vencidas." />
-          <MiniCard titulo="Retracto" texto="La contratación online informa precio, IVA y condiciones. El derecho a retracto se aplicará cuando corresponda según normativa vigente." />
+          <MiniCard titulo="TÃ©rminos y condiciones" texto="Servicio SaaS de suscripciÃ³n mensual o anual. El cliente debe ingresar informaciÃ³n fidedigna y revisar sus reportes." />
+          <MiniCard titulo="PolÃ­tica de privacidad" texto="Los datos se usan para contrataciÃ³n, activaciÃ³n, facturaciÃ³n, soporte y comunicaciones del servicio." />
+          <MiniCard titulo="Seguridad" texto="Acceso autenticado, roles de usuario, separaciÃ³n por empresa y bloqueo automÃ¡tico de demos vencidas." />
+          <MiniCard titulo="Retracto" texto="La contrataciÃ³n online informa precio, IVA y condiciones. El derecho a retracto se aplicarÃ¡ cuando corresponda segÃºn normativa vigente." />
         </div>
       </section>
 
@@ -297,19 +322,20 @@ export default function Inicio() {
         <h2 style={seccionTitulo}>Datos de empresa</h2>
         <div style={datosEmpresaBox}>
           <LineaResumen label="Web" valor="www.servcontablepro.cl" />
-          <LineaResumen label="Aplicación" valor="app.servcontablepro.cl" />
+          <LineaResumen label="AplicaciÃ³n" valor="app.servcontablepro.cl" />
           <LineaResumen label="Demo" valor="demo.servcontablepro.cl" />
           <LineaResumen label="Contacto" valor="contacto@servcontablepro.cl" />
-          <LineaResumen label="WhatsApp" valor="+56 9 8450 8073" />
-          <LineaResumen label="Razón social / RUT" valor="Completar datos de la empresa emisora en producción" />
+          <LineaResumen label="WhatsApp" valor="+56984508073" />
+          <LineaResumen label="RazÃ³n social / RUT" valor="Completar datos de la empresa emisora en producciÃ³n" />
         </div>
       </section>
+
       <section id="contratar" style={checkout}>
         <div style={checkoutFormCard}>
           <span style={pill}>Checkout seguro</span>
           <h2 style={seccionTitulo}>Datos de contratacion</h2>
           <p style={textoPlan}>
-            Completa los datos para crear el link de pago en Mercado Pago.
+            Completa los datos para crear el link de pago en Flow.
           </p>
 
           <form style={formularioEstilo} onSubmit={contratar}>
@@ -389,7 +415,7 @@ export default function Inicio() {
             {error && <p style={mensajeError}>{error}</p>}
 
             <button style={botonPago} type="submit" disabled={cargando}>
-              {cargando ? "Creando link..." : "Pagar con Mercado Pago"}
+              {cargando ? "Creando pago..." : "Pagar con Flow"}
             </button>
           </form>
         </div>
@@ -406,7 +432,7 @@ export default function Inicio() {
             <strong>{formatearCLP(totalSeleccionado.total)}</strong>
           </div>
           <p style={resumenNota}>
-            WhatsApp soporte: +56 9 8450 8073. Atencion de lunes a viernes.
+            WhatsApp soporte: +56984508073. Atencion de lunes a viernes.
           </p>
         </aside>
       </section>
@@ -438,7 +464,6 @@ function LineaResumen({ label, valor }) {
   );
 }
 
-
 function MiniCard({ titulo, texto }) {
   return (
     <article style={miniCard}>
@@ -448,11 +473,11 @@ function MiniCard({ titulo, texto }) {
   );
 }
 
-function Pregunta({ pregunta, respuesta }) {
+function Pregunta({ titulo, texto }) {
   return (
     <details style={preguntaCard}>
-      <summary>{pregunta}</summary>
-      <p>{respuesta}</p>
+      <summary>{titulo}</summary>
+      <p>{texto}</p>
     </details>
   );
 }
@@ -658,6 +683,12 @@ const botonSecundario = {
   color: "#0369a1",
   border: "1px solid #7dd3fc",
 };
+const botonWhatsapp = {
+  ...botonBase,
+  background: "#dcfce7",
+  color: "#047857",
+  border: "1px solid #86efac",
+};
 const botonClaro = {
   ...botonBase,
   background: "#e0f2fe",
@@ -669,6 +700,62 @@ const botonTexto = { ...botonBase, background: "transparent", color: "#075985", 
 const botonPago = { ...botonPrincipal, width: "100%", fontSize: "15px" };
 const mensajeOk = { color: "#059669", fontWeight: 900, margin: 0 };
 const mensajeError = { color: "#ef4444", fontWeight: 900, margin: 0 };
+
+const seccionWeb = {
+  maxWidth: "1160px",
+  margin: "18px auto 0",
+  background: "rgba(255,255,255,0.94)",
+  border: "1px solid #bae6fd",
+  borderRadius: "20px",
+  padding: "20px",
+  boxShadow: "0 14px 32px rgba(8, 47, 73, 0.08)",
+};
+
+const gridWeb2 = {
+  display: "grid",
+  gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+  gap: "10px",
+};
+
+const gridWeb3 = {
+  display: "grid",
+  gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+  gap: "10px",
+};
+
+const gridWeb4 = {
+  display: "grid",
+  gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+  gap: "10px",
+};
+
+const miniCard = {
+  background: "#f8fdff",
+  border: "1px solid #d7effa",
+  borderRadius: "14px",
+  padding: "12px",
+  color: "#075985",
+  fontSize: "13px",
+  lineHeight: 1.4,
+};
+
+const preguntaCard = {
+  ...miniCard,
+  color: "#102238",
+};
+
+const demoLegalBox = {
+  ...miniCard,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: "16px",
+};
+
+const datosEmpresaBox = {
+  ...miniCard,
+  maxWidth: "780px",
+};
 
 const avisoPago = (tipo) => ({
   maxWidth: "1160px",
@@ -686,13 +773,3 @@ const avisoPago = (tipo) => ({
 });
 
 
-
-const seccionWeb = { maxWidth: "1160px", margin: "18px auto 0", padding: "22px", background: "white", border: "1px solid #bae6fd", borderRadius: "22px", boxShadow: "0 18px 38px rgba(8, 47, 73, 0.08)" };
-const gridWeb2 = { display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "14px", marginTop: "12px" };
-const gridWeb3 = { display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "14px", marginTop: "12px" };
-const gridWeb4 = { display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: "14px", marginTop: "12px" };
-const miniCard = { background: "#f8fafc", border: "1px solid #dbeafe", borderRadius: "16px", padding: "14px", color: "#102238", lineHeight: 1.45 };
-const preguntaCard = { background: "#f8fafc", border: "1px solid #dbeafe", borderRadius: "16px", padding: "14px", color: "#102238", lineHeight: 1.45 };
-const demoLegalBox = { background: "#ecfeff", border: "1px solid #67e8f9", borderRadius: "16px", padding: "14px", color: "#083344", fontWeight: 800 };
-const datosEmpresaBox = { background: "#f0f9ff", border: "1px solid #bae6fd", borderRadius: "16px", padding: "14px", color: "#075985", lineHeight: 1.5 };
-const botonWhatsapp = { ...botonBase, textDecoration: "none", background: "#22c55e", color: "white", display: "inline-flex", alignItems: "center", justifyContent: "center" };

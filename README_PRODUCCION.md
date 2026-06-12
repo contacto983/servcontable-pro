@@ -45,6 +45,14 @@ ADMIN_EMAIL=admin@tu-dominio.cl
 ADMIN_PASSWORD=cambiar_esta_clave_inicial
 ALLOW_PUBLIC_REGISTRATION=false
 CORS_ORIGIN=https://app.tu-dominio.cl
+FLOW_ENV=production
+FLOW_API_BASE=https://www.flow.cl/api
+FLOW_API_KEY=tu_api_key_flow
+FLOW_SECRET_KEY=tu_secret_key_flow
+PUBLIC_BASE_URL=https://www.servcontablepro.cl
+BACKEND_PUBLIC_URL=https://api.servcontablepro.cl
+FLOW_CONFIRMATION_URL=https://api.servcontablepro.cl/api/pagos-flow/webhook
+FLOW_RETURN_URL=https://api.servcontablepro.cl/api/pagos-flow/retorno
 ```
 
 Ejemplo frontend:
@@ -165,6 +173,8 @@ Ejemplo de rutas:
 - Mantener `ALLOW_PUBLIC_REGISTRATION=false`.
 - Configurar `CORS_ORIGIN` con el dominio real del frontend.
 - Configurar `VITE_API_URL` con el dominio real del backend.
+- Configurar `FLOW_API_KEY` y `FLOW_SECRET_KEY` con las credenciales privadas de Flow.
+- Configurar en Flow la URL de confirmacion `https://api.servcontablepro.cl/api/pagos-flow/webhook` y la URL de retorno `https://api.servcontablepro.cl/api/pagos-flow/retorno`.
 - Confirmar que `backend/.env` no se sube a repositorios ni se envia a clientes.
 - Activar HTTPS.
 - Configurar respaldos automaticos de PostgreSQL.
@@ -205,3 +215,4 @@ Resumen:
 - Frontend demo compilado con `npm run build:demo`.
 - Mantener `ALLOW_PUBLIC_REGISTRATION=false`.
 - No usar datos reales de clientes en la demo.
+

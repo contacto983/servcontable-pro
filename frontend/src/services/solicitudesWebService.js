@@ -1,4 +1,4 @@
-import { crearUrlApi } from "./apiConfig";
+﻿import { crearUrlApi } from "./apiConfig";
 import { obtenerToken } from "./authService";
 import {
   activarDemoSolicitud,
@@ -21,7 +21,7 @@ export async function listarSolicitudesWeb() {
 
   const [contactosResultado, pagosResultado] = await Promise.allSettled([
     listarSolicitudesContacto(),
-    fetch(crearUrlApi("/pagos-mercadopago/contrataciones"), {
+    fetch(crearUrlApi("/pagos-flow/contrataciones"), {
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -77,7 +77,7 @@ function normalizarContacto(solicitud) {
     monto_neto: 0,
     iva: 0,
     gestion: estadoGestion ? { estado: estadoGestion } : null,
-    pago_mercado_pago: null,
+    pago_flow: null,
   };
 }
 
@@ -86,7 +86,7 @@ function normalizarContratacion(solicitud) {
     ...solicitud,
     id: `pago-${solicitud.id}`,
     id_original: solicitud.id,
-    fuente: "mercado_pago",
+    fuente: "flow",
     tipo_solicitud: "Contratacion",
   };
 }
@@ -102,7 +102,7 @@ export async function marcarSolicitudContactada(solicitud) {
   const id = solicitud?.id_original || solicitud;
 
   const respuesta = await fetch(
-    crearUrlApi(`/pagos-mercadopago/contrataciones/${id}/gestion`),
+    crearUrlApi(`/pagos-flow/contrataciones/${id}/gestion`),
     {
       method: "PATCH",
       headers: {

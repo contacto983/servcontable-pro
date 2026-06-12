@@ -1,7 +1,7 @@
-import { useMemo, useState } from "react";
+﻿import { useMemo, useState } from "react";
 import SessionHeader from "../components/SessionHeader";
 import { obtenerSesionActualizada } from "../services/authService";
-import { crearRenovacionMercadoPago } from "../services/suscripcionService";
+import { crearRenovacionFlow } from "../services/suscripcionService";
 
 const PRECIO_MENSUAL_BASE = 16990;
 const PRECIO_ANUAL_BASE_MENSUAL = 14990;
@@ -64,22 +64,28 @@ function RenovarSuscripcion({
     [plan, meses, usuariosAdicionales]
   );
 
-  async function pagarMercadoPago() {
+  async function pagarFlow() {
     setError("");
-    setMensaje("Esperando transacción...");
+    setMensaje("Preparando pago en Flow...");
     setCargando(true);
 
     try {
-      const data = await crearRenovacionMercadoPago({
+      const correoUsuario = usuario?.email || usuario?.correo || "";
+      const nombreUsuario = usuario?.nombre || correoUsuario || "Cliente ServContable";
+      const data = await crearRenovacionFlow({
+        nombre: nombreUsuario,
+        correo: correoUsuario,
         plan,
+        periodicidad: plan,
         meses: valores.mesesCobro,
         usuarios_adicionales: usuariosAdicionales,
+        mensaje: `Renovacion de suscripcion ${plan}`,
       });
 
-      const destino = data.init_point || data.sandbox_init_point;
+      const destino = data.checkout_url || data.url;
 
       if (!destino) {
-        throw new Error("Mercado Pago no devolvió un enlace de pago.");
+        throw new Error("Flow no devolvio un enlace de pago.");
       }
 
       window.location.href = destino;
@@ -92,7 +98,7 @@ function RenovarSuscripcion({
 
   async function actualizarEstado() {
     setError("");
-    setMensaje("Actualizando estado de la suscripción...");
+    setMensaje("Actualizando estado de la suscripciÃ³n...");
 
     try {
       const usuarioActualizado = await obtenerSesionActualizada();
@@ -122,8 +128,8 @@ function RenovarSuscripcion({
           <div className="sc-renewal-dialog">
             <div className="sc-renewal-question">?</div>
             <p>
-              Tu suscripción expiró el <strong>{formatearFecha(fechaVence)}</strong>.
-              ¿Deseas renovarla?
+              Tu suscripciÃ³n expirÃ³ el <strong>{formatearFecha(fechaVence)}</strong>.
+              Â¿Deseas renovarla?
             </p>
             <div className="sc-actions-row">
               <button
@@ -146,9 +152,9 @@ function RenovarSuscripcion({
       <main className="sc-renewal-content">
         <section className="serv-modulo-hero sc-renewal-hero">
           <div className="serv-modulo-hero__texto">
-            <h1>Renovar suscripción</h1>
+            <h1>Renovar suscripciÃ³n</h1>
             <p>
-              Tu acceso está vencido. Renueva el plan para volver a utilizar los módulos
+              Tu acceso estÃ¡ vencido. Renueva el plan para volver a utilizar los mÃ³dulos
               contables y de remuneraciones.
             </p>
           </div>
@@ -223,17 +229,17 @@ function RenovarSuscripcion({
 
           {plan === "anual" && (
             <p className="sc-renewal-note">
-              Pago anual de una vez: 12 meses x $14.990 neto, más IVA.
+              Pago anual de una vez: 12 meses x $14.990 neto, mÃ¡s IVA.
             </p>
           )}
 
           <div className="sc-actions-row">
             <button
               className="sc-btn sc-btn--primary"
-              onClick={pagarMercadoPago}
+              onClick={pagarFlow}
               disabled={cargando}
             >
-              Pagar con Mercado Pago
+              Pagar con Flow
             </button>
             <button
               className="sc-btn sc-btn--outline"
@@ -260,3 +266,4 @@ function RenovarSuscripcion({
 }
 
 export default RenovarSuscripcion;
+
