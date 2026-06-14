@@ -2,10 +2,8 @@ const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
 const pool = require("../database/db");
 const { enviarCorreoSolicitudContacto } = require("../helpers/mail.helper");
-const { asignarUsuarioEmpresa } = require("../helpers/auth.helper");
 const {
   asegurarEsquemaDemo,
-  asegurarEmpresaDemo,
   diasDemo,
   normalizarEmailDemo,
   formatoFechaDemo,
@@ -248,22 +246,23 @@ async function activarDemoSolicitud(req, res) {
         ? await client.query(
             `UPDATE usuarios
              SET nombre = $1,
+                 password_hash = $2,
                  rol = 'admin_cliente',
                  activo = true,
                  demo_activo = true,
                  demo_inicio = CURRENT_DATE,
-                 demo_vence = (CURRENT_DATE + ($2::int * INTERVAL '1 day'))::date,
+                 demo_vence = (CURRENT_DATE + ($3::int * INTERVAL '1 day'))::date,
                  demo_empresa_limite = 1,
-                 demo_solicitud_id = $3,
+                 demo_solicitud_id = $4,
                  suscripcion_estado = 'demo',
                  suscripcion_plan = 'demo',
                  suscripcion_inicio = CURRENT_DATE,
-                 suscripcion_vence = (CURRENT_DATE + ($2::int * INTERVAL '1 day'))::date,
+                 suscripcion_vence = (CURRENT_DATE + ($3::int * INTERVAL '1 day'))::date,
                  suscripcion_usuarios_adicionales = 0,
                  suscripcion_actualizada_en = NOW()
-             WHERE id = $4
+             WHERE id = $5
              RETURNING *`,
-            [nombre, dias, solicitudId, existente.rows[0].id]
+            [nombre, passwordHash, dias, solicitudId, existente.rows[0].id]
           )
         : await client.query(
             `INSERT INTO usuarios
@@ -281,8 +280,6 @@ async function activarDemoSolicitud(req, res) {
           );
 
     const usuario = usuarioResult.rows[0];
-    const empresa = await asegurarEmpresaDemo(client, usuario, solicitud);
-    await asignarUsuarioEmpresa(client, usuario.id, empresa.id, "admin");
 
     const solicitudActualizada = await client.query(
       `UPDATE solicitudes_contacto
@@ -307,10 +304,12 @@ async function activarDemoSolicitud(req, res) {
       demo: {
         email,
         usuario_id: usuario.id,
-        empresa_id: empresa.id,
+        empresa_id: null,
         inicio: formatoFechaDemo(usuario.demo_inicio),
         vence: formatoFechaDemo(usuario.demo_vence),
         dias,
+        empresa_limite: Number(usuario.demo_empresa_limite || 1),
+        password_temporal: passwordTemporal,
       },
       solicitud: solicitudActualizada.rows[0],
     });

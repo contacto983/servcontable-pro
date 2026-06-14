@@ -3,14 +3,12 @@ const bcrypt = require("bcryptjs");
 const ROLES_ADMIN_SISTEMA = ["superadmin", "admin", "administrador_sistema"];
 const ROLES_ADMIN_CLIENTE = ["admin_cliente", "cliente_admin"];
 const ROLES_USUARIO_CLIENTE = ["usuario_cliente", "cliente_usuario", "usuario"];
-const ROLES_DEMO = ["usuario_demo", "demo", "cliente_demo"];
 
 function normalizarRol(rol = "") {
   const valor = String(rol || "").trim().toLowerCase();
 
   if (ROLES_ADMIN_SISTEMA.includes(valor)) return "superadmin";
   if (ROLES_ADMIN_CLIENTE.includes(valor)) return "admin_cliente";
-  if (ROLES_DEMO.includes(valor)) return "usuario_demo";
   if (ROLES_USUARIO_CLIENTE.includes(valor)) return "usuario_cliente";
 
   return "usuario_cliente";
@@ -26,6 +24,14 @@ function esAdminCliente(rol = "") {
 
 function puedeAdministrarUsuarios(rol = "") {
   return esAdminSistema(rol) || esAdminCliente(rol);
+}
+
+function esEmpresaDemoSistemaCondicion(alias = "e") {
+  return `NOT (
+    UPPER(COALESCE(${alias}.rut, '')) LIKE 'DEMO-%'
+    OR ${alias}.razon_social ILIKE 'Empresa demo %'
+    OR ${alias}.razon_social ILIKE 'EMPRESA DEMO SERVCONTABLE%'
+  )`;
 }
 
 async function asegurarEsquemaAuth(client) {
@@ -134,6 +140,7 @@ async function obtenerEmpresasPermitidas(client, usuario) {
      WHERE ue.usuario_id = $1
        AND ue.activo = true
        AND e.activa = true
+       ${usuario.demo === true ? `AND ${esEmpresaDemoSistemaCondicion("e")}` : ""}
      ORDER BY e.razon_social ASC`,
     [usuario.id]
   );

@@ -1,4 +1,4 @@
-const express = require("express");
+﻿const express = require("express");
 const router = express.Router();
 
 const {
@@ -19,7 +19,7 @@ router.post(
   "/",
   verificarToken,
   limitarCreacionDemoPorEmpresa({
-    modulo: "año de trabajo",
+    modulo: "a\u00f1o de trabajo",
     tabla: "ejercicios_contables",
     limite: 1,
   }),
@@ -28,14 +28,15 @@ router.post(
 router.put(
   "/:id/cerrar",
   verificarToken,
-  bloquearDemo("el cierre de año se habilita en la version contratada."),
+  bloquearDemo("el cierre de a\u00f1o se habilita en la version contratada."),
   cerrarEjercicio
 );
 router.put(
   "/:id/reabrir",
   verificarToken,
-  bloquearDemo("la reapertura de año se habilita en la version contratada."),
+  bloquearDemo("la reapertura de a\u00f1o se habilita en la version contratada."),
   reabrirEjercicio
 );
 
 module.exports = router;
+

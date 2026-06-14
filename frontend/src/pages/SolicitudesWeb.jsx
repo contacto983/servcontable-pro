@@ -213,7 +213,12 @@ export default function SolicitudesWeb() {
       setMensaje("");
 
       const data = await activarDemoDesdeSolicitud(solicitud);
-      setMensaje(data?.mensaje || "Demo activada correctamente.");
+      const claveTemporal = data?.demo?.password_temporal;
+      setMensaje(
+        claveTemporal
+          ? `${data?.mensaje || "Demo activada correctamente."} Clave temporal: ${claveTemporal}`
+          : data?.mensaje || "Demo activada correctamente."
+      );
       await cargarSolicitudes();
     } catch (err) {
       setError(err.message);

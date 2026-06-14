@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import {
   loginDemo,
   loginUsuario,
@@ -57,7 +57,11 @@ export default function Login({ irARegistro, loginCorrecto }) {
         throw new Error("Ingresa el correo que fue autorizado para la demo.");
       }
 
-      const data = await loginDemo(email);
+      if (!password) {
+        throw new Error("Ingresa la contrasena asignada para la demo.");
+      }
+
+      const data = await loginDemo(email, password);
       loginCorrecto(data.usuario);
     } catch (err) {
       setError(err.message);
@@ -159,31 +163,31 @@ export default function Login({ irARegistro, loginCorrecto }) {
           {permiteDemo
             ? "Demo individual por 30 dias"
             : resetToken
-            ? "Define una nueva contraseña"
+            ? "Define una nueva contraseÃ±a"
             : modoRecuperacion
-            ? "Recuperación segura de acceso"
+            ? "RecuperaciÃ³n segura de acceso"
             : "Ingreso seguro al sistema"}
         </p>
 
         {resetToken ? (
           <form onSubmit={manejarResetPassword} style={formulario}>
             <CampoPassword
-              label="Nueva contraseña"
+              label="Nueva contraseÃ±a"
               value={nuevaPassword}
               onChange={setNuevaPassword}
-              placeholder="Mínimo 8 caracteres"
+              placeholder="MÃ­nimo 8 caracteres"
               autoComplete="new-password"
             />
 
             <button style={botonPrimario} type="submit">
-              Actualizar contraseña
+              Actualizar contraseÃ±a
             </button>
           </form>
         ) : modoRecuperacion ? (
           <form onSubmit={manejarSolicitudRecuperacion} style={formulario}>
             <p style={textoAyuda}>
               Ingresa tu correo y enviaremos un enlace temporal para crear una
-              nueva contraseña.
+              nueva contraseÃ±a.
             </p>
 
             <CampoEmail value={email} onChange={setEmail} />
@@ -195,8 +199,8 @@ export default function Login({ irARegistro, loginCorrecto }) {
         ) : solicitarDemo ? (
           <form onSubmit={manejarSolicitudDemo} style={formulario}>
             <p style={textoAyuda}>
-              Solicita acceso demo. El administrador habilitará tu correo por 30
-              días y con límite de 1 empresa.
+              Solicita acceso demo. El administrador habilitarÃ¡ tu correo por 30
+              dÃ­as y con lÃ­mite de 1 empresa.
             </p>
 
             <CampoTexto
@@ -206,7 +210,7 @@ export default function Login({ irARegistro, loginCorrecto }) {
               placeholder="Tu nombre"
             />
             <CampoTexto
-              label="Correo electrónico"
+              label="Correo electrÃ³nico"
               type="email"
               value={demoForm.correo || email}
               onChange={(valor) => {
@@ -230,19 +234,16 @@ export default function Login({ irARegistro, loginCorrecto }) {
           <>
             <form onSubmit={manejarLogin} style={formulario}>
               <CampoEmail value={email} onChange={setEmail} />
-
-              {!permiteDemo && (
-                <CampoPassword
-                  label="Contraseña"
-                  value={password}
-                  onChange={setPassword}
-                  placeholder="********"
-                  autoComplete="current-password"
-                />
-              )}
+              <CampoPassword
+                label="Contrasena"
+                value={password}
+                onChange={setPassword}
+                placeholder="********"
+                autoComplete="current-password"
+              />
 
               <button style={botonPrimario} type="submit">
-                {permiteDemo ? "Ingresar a demo 30 días" : "Ingresar"}
+                {permiteDemo ? "Ingresar a demo autorizada" : "Ingresar"}
               </button>
             </form>
 
@@ -255,7 +256,7 @@ export default function Login({ irARegistro, loginCorrecto }) {
                   limpiarMensajes();
                 }}
               >
-                Recuperar contraseña
+                Recuperar contraseÃ±a
               </button>
             )}
 
@@ -308,7 +309,7 @@ export default function Login({ irARegistro, loginCorrecto }) {
 function CampoEmail({ value, onChange }) {
   return (
     <CampoTexto
-      label="Correo electrónico"
+      label="Correo electrÃ³nico"
       type="email"
       value={value}
       onChange={onChange}
@@ -498,3 +499,4 @@ const notaAcceso = {
   textAlign: "center",
   fontSize: "12px",
 };
+

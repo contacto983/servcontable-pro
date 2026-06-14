@@ -51,6 +51,11 @@ function limitarEmpresasDemo(limite = 1) {
         WHERE ue.usuario_id = $1
           AND ue.activo = true
           AND e.activa = true
+          AND NOT (
+            UPPER(COALESCE(e.rut, '')) LIKE 'DEMO-%'
+            OR e.razon_social ILIKE 'Empresa demo %'
+            OR e.razon_social ILIKE 'EMPRESA DEMO SERVCONTABLE%'
+          )
         `,
         [req.usuario.id]
       );
