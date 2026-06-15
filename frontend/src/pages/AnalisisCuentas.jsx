@@ -564,7 +564,7 @@ export default function AnalisisCuentas() {
                 <tr>
                     <th style={th}>Fecha</th>
                     <th style={th}>Tipo</th>
-                    <th style={th}>N?</th>
+                    <th style={th}>N°</th>
                     <th style={th}>Glosa comprobante</th>
                     <th style={th}>Glosa detalle</th>
                     <th style={thNumero}>Debe</th>

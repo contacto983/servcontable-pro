@@ -140,7 +140,7 @@ export default function Honorarios() {
   }
 
   async function anular(id) {
-    const confirmar = window.confirm("?Seguro deseas anular este honorario?");
+    const confirmar = window.confirm("¿Seguro deseas anular este honorario?");
 
     if (!confirmar) return;
 
@@ -159,7 +159,7 @@ export default function Honorarios() {
 
   async function contabilizar(id) {
     const confirmar = window.confirm(
-        "?Deseas contabilizar este honorario y generar el comprobante contable?"
+        "¿Deseas contabilizar este honorario y generar el comprobante contable?"
     );
 
     if (!confirmar) return;

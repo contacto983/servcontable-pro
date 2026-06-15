@@ -105,7 +105,7 @@ async function crearFiniquito(req, res) {
     if (!empresa_id || !trabajador_id || !periodo || !fecha_termino || !causal) {
       return res.status(400).json({
         error:
-          "Debe indicar empresa_id, trabajador_id, perÃ­odo, fecha de tÃ©rmino y causal",
+          "Debe indicar empresa_id, trabajador_id, período, fecha de término y causal",
       });
     }
 
@@ -535,7 +535,7 @@ async function contabilizarFiniquito(req, res) {
       await client.query("ROLLBACK");
 
       return res.status(400).json({
-        error: "Este finiquito ya estÃ¡ contabilizado",
+        error: "Este finiquito ya está contabilizado",
       });
     }
 
@@ -803,7 +803,7 @@ async function pagarFiniquito(req, res) {
       await client.query("ROLLBACK");
 
       return res.status(400).json({
-        error: "Este finiquito ya estÃ¡ marcado como pagado",
+        error: "Este finiquito ya está marcado como pagado",
       });
     }
 
@@ -848,7 +848,7 @@ async function pagarFiniquito(req, res) {
       await client.query("ROLLBACK");
 
       return res.status(400).json({
-        error: "El finiquito no tiene monto vÃ¡lido para pagar",
+        error: "El finiquito no tiene monto válido para pagar",
       });
     }
 

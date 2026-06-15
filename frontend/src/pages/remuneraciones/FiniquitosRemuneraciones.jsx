@@ -423,7 +423,7 @@ export default function FiniquitosRemuneraciones() {
         pagaIndemnizacionAnios: true,
         pagaIndemnizacionObraFaena: false,
         mensaje:
-          "Art. 161: calcula feriado, aviso previo si no hubo aviso de 30 dias e indemnizacion por años de servicio si corresponde.",
+          "Art. 161: calcula feriado, aviso previo si no hubo aviso de 30 días e indemnizacion por años de servicio si corresponde.",
       };
     }
 
@@ -601,8 +601,8 @@ export default function FiniquitosRemuneraciones() {
         ? 0
         : Math.round(baseFinal);
       actualizado.observacion_aviso_previo = actualizado.hubo_aviso_30_dias
-        ? "No se calcula aviso previo porque se marco aviso escrito con 30 dias."
-        : `${regla.articulo}: sin aviso de 30 dias, se calcula una remuneracion mensual indemnizable de ${formato(baseFinal)}.`;
+        ? "No se calcula aviso previo porque se marco aviso escrito con 30 días."
+        : `${regla.articulo}: sin aviso de 30 días, se calcula una remuneracion mensual indemnizable de ${formato(baseFinal)}.`;
       actualizado.observacion_anios_servicio = `${regla.articulo}: ${tiempo.aniosReconocidos} años reconocidos. Base indemnizatoria ${formato(baseFinal)}. Fraccion superior a 6 meses suma un año, con tope de 11 años.`;
     } else if (regla.pagaIndemnizacionObraFaena) {
       const mesesIndemnizables = calcularMesesIndemnizablesObraFaena(tiempo);
@@ -881,7 +881,7 @@ export default function FiniquitosRemuneraciones() {
                 checked={form.hubo_aviso_30_dias}
                 onChange={cambiarForm}
               />
-              Hubo aviso escrito con 30 dias
+              Hubo aviso escrito con 30 días
             </label>
           )}
 
@@ -920,7 +920,7 @@ export default function FiniquitosRemuneraciones() {
           <ConceptoCard
             titulo="Indemnizacion aviso previo"
             monto={formato(form.indemnizacion_aviso_previo)}
-            detalle={form.hubo_aviso_30_dias ? "No aplica por aviso de 30 dias" : "Una remuneracion indemnizable"}
+            detalle={form.hubo_aviso_30_dias ? "No aplica por aviso de 30 días" : "Una remuneracion indemnizable"}
             obs={form.observacion_aviso_previo}
             onEditar={() => abrirModal("avisoPrevio", "Indemnizacion aviso previo")}
           />

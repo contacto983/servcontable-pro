@@ -369,8 +369,8 @@ export default function SolicitudesWeb() {
                             <button
                               style={botonIconoDemo}
                               type="button"
-                              title="Activar demo 30 dias"
-                              aria-label="Activar demo 30 dias"
+                              title="Activar demo 30 días"
+                              aria-label="Activar demo 30 días"
                               onClick={() => activarDemo(solicitud)}
                             >
                               <Icono tipo="demo" />

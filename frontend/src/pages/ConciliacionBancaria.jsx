@@ -169,7 +169,7 @@ export default function ConciliacionBancaria() {
                     </td>
                     <td style={td}>
                       <button style={iconButton} type="button" onClick={() => cambiarEstado(movimiento)} title="Cambiar estado">
-                        {movimiento.estado === "conciliado" ? "â†º" : "âœ“"}
+                        {movimiento.estado === "conciliado" ? "↺" : "✓"}
                       </button>
                     </td>
                   </tr>

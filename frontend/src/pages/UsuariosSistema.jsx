@@ -256,7 +256,7 @@ export default function UsuariosSistema() {
       setMensaje("");
 
       await resetearPasswordUsuario(usuario.id, nuevaClave);
-      setMensaje("Contrasena temporal actualizada correctamente.");
+      setMensaje("Contraseña temporal actualizada correctamente.");
     } catch (err) {
       setError(err.message);
     }

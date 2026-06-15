@@ -45,7 +45,7 @@ export async function registrarPagoRemuneracion(datos) {
   const data = await respuesta.json();
 
   if (!respuesta.ok) {
-    throw new Error(data.error || "Error al registrar pago remuneraciÃ³n");
+    throw new Error(data.error || "Error al registrar pago remuneración");
   }
 
   return data;
@@ -71,7 +71,7 @@ export async function anularPagoRemuneracion(id, empresaId) {
   const data = await respuesta.json();
 
   if (!respuesta.ok) {
-    throw new Error(data.error || "Error al anular pago remuneraciÃ³n");
+    throw new Error(data.error || "Error al anular pago remuneración");
   }
 
   return data;

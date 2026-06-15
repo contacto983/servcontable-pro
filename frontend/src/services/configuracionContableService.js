@@ -23,7 +23,7 @@ export async function obtenerConfiguracionContable(empresaId) {
   const data = await respuesta.json();
 
   if (!respuesta.ok) {
-    throw new Error(data.error || "Error al obtener configuraciÃ³n contable");
+    throw new Error(data.error || "Error al obtener configuración contable");
   }
 
   return data;
@@ -44,7 +44,7 @@ export async function guardarConfiguracionContable(datos) {
   const data = await respuesta.json();
 
   if (!respuesta.ok) {
-    throw new Error(data.error || "Error al guardar configuraciÃ³n contable");
+    throw new Error(data.error || "Error al guardar configuración contable");
   }
 
   return data;

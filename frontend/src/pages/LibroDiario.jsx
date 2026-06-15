@@ -334,7 +334,7 @@ export default function LibroDiario() {
             <tr>
               <th style={th}>Fecha</th>
               <th style={th}>Tipo</th>
-              <th style={th}>N?</th>
+              <th style={th}>N°</th>
               <th style={th}>Codigo</th>
               <th style={th}>Cuenta</th>
               <th style={th}>Glosa</th>

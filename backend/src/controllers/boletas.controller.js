@@ -280,7 +280,7 @@ async function importarBoletasSII(req, res) {
           "Fecha Documento",
           "Fecha Emision",
           "Fecha de Emision",
-          "Fecha emisiÃ³n",
+          "Fecha emisión",
           "Fecha Boleta",
           "Fecha",
         ])
@@ -298,7 +298,7 @@ async function importarBoletasSII(req, res) {
             "Folio",
             "Nro Folio",
             "Numero Folio",
-            "NÃºmero Folio",
+            "Número Folio",
             "Numero Boleta",
             "Nro Boleta",
             "Nro Documento",
@@ -322,7 +322,7 @@ async function importarBoletasSII(req, res) {
         String(
           valorFila(fila, [
             "Razon Social",
-            "RazÃ³n Social",
+            "Razón Social",
             "Razon Social Cliente",
             "Cliente",
             "Receptor",
@@ -336,7 +336,7 @@ async function importarBoletasSII(req, res) {
         valorFila(fila, ["Monto Exento", "Exento", "Monto No Afecto", "Monto Exento Boleta"])
       );
       let iva = convertirMonto(
-        valorFila(fila, ["Monto IVA", "IVA", "IVA Debito", "IVA DÃ©bito", "Monto Iva"])
+        valorFila(fila, ["Monto IVA", "IVA", "IVA Debito", "IVA Débito", "Monto Iva"])
       );
       let total = convertirMonto(
         valorFila(fila, [

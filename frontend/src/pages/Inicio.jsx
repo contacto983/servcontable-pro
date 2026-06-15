@@ -248,16 +248,16 @@ export default function Inicio() {
             type="button"
             onClick={() => irAContratacion(periodicidad)}
           >
-            Contratar plan â†’
+            Contratar plan →
           </button>
         </section>
       </main>
 
       <section style={seccionWeb} id="problema">
-        <h2 style={seccionTitulo}>QuÃ© problema resuelve</h2>
+        <h2 style={seccionTitulo}>Qué problema resuelve</h2>
         <p style={textoPlan}>
           ServContable PRO ordena contabilidad, remuneraciones e impuestos por
-          empresa, aÃ±o de trabajo y usuario.
+          empresa, año de trabajo y usuario.
         </p>
         <div style={gridWeb3}>
           <MiniCard titulo="Menos planillas" texto="Compras, ventas, comprobantes, liquidaciones y reportes quedan conectados." />
@@ -272,7 +272,7 @@ export default function Inicio() {
           <MiniCard titulo="Contabilidad" texto="Comprobantes, compras, ventas, libro diario, mayor, balance y resultado." />
           <MiniCard titulo="Tributario" texto="Resumen IVA, F29 estimado, retenciones y control de remanente." />
           <MiniCard titulo="Remuneraciones" texto="Trabajadores, haberes, descuentos, liquidaciones, pagos y Previred." />
-          <MiniCard titulo="GestiÃ³n" texto="Empresas, usuarios, auditorÃ­a, demo y solicitudes web." />
+          <MiniCard titulo="Gestión" texto="Empresas, usuarios, auditoría, demo y solicitudes web." />
         </div>
       </section>
 
@@ -281,12 +281,12 @@ export default function Inicio() {
         <div style={demoLegalBox}>
           <p style={textoPlan}>
             El demo es individual por cliente: el interesado solicita acceso con
-            su correo, el administrador lo activa por 30 dÃ­as y queda limitado a
+            su correo, el administrador lo activa por 30 días y queda limitado a
             1 empresa.
           </p>
           <p style={textoPlan}>
             Al vencer, el sistema bloquea el ingreso demo y muestra un mensaje
-            para solicitar renovaciÃ³n o contratar el plan.
+            para solicitar renovación o contratar el plan.
           </p>
           <button
             style={botonPrincipalMini}
@@ -301,20 +301,20 @@ export default function Inicio() {
       <section style={seccionWeb} id="faq">
         <h2 style={seccionTitulo}>Preguntas frecuentes</h2>
         <div style={gridWeb2}>
-          <Pregunta titulo="Â¿El plan es multiempresa?" texto="SÃ­. El plan PRO es multiempresa e incluye 1 usuario." />
-          <Pregunta titulo="Â¿CuÃ¡nto dura el demo?" texto="30 dÃ­as desde la activaciÃ³n del administrador, con lÃ­mite de 1 empresa." />
-          <Pregunta titulo="Â¿CÃ³mo se activa el plan?" texto="Flow confirma el pago por webhook y el sistema registra la contrataciÃ³n para habilitar el acceso." />
-          <Pregunta titulo="Â¿CuÃ¡nto cuesta un usuario adicional?" texto="$3.990 + IVA mensual por usuario adicional." />
+          <Pregunta titulo="¿El plan es multiempresa?" texto="Sí. El plan PRO es multiempresa e incluye 1 usuario." />
+          <Pregunta titulo="¿Cuánto dura el demo?" texto="30 días desde la activación del administrador, con límite de 1 empresa." />
+          <Pregunta titulo="¿Cómo se activa el plan?" texto="Flow confirma el pago por webhook y el sistema registra la contratación para habilitar el acceso." />
+          <Pregunta titulo="¿Cuánto cuesta un usuario adicional?" texto="$3.990 + IVA mensual por usuario adicional." />
         </div>
       </section>
 
       <section style={seccionWeb} id="legales">
-        <h2 style={seccionTitulo}>TÃ©rminos y condiciones, privacidad y seguridad</h2>
+        <h2 style={seccionTitulo}>Términos y condiciones, privacidad y seguridad</h2>
         <div style={gridWeb4}>
-          <MiniCard titulo="TÃ©rminos y condiciones" texto="Servicio SaaS de suscripciÃ³n mensual o anual. El cliente debe ingresar informaciÃ³n fidedigna y revisar sus reportes." />
-          <MiniCard titulo="PolÃ­tica de privacidad" texto="Los datos se usan para contrataciÃ³n, activaciÃ³n, facturaciÃ³n, soporte y comunicaciones del servicio." />
-          <MiniCard titulo="Seguridad" texto="Acceso autenticado, roles de usuario, separaciÃ³n por empresa y bloqueo automÃ¡tico de demos vencidas." />
-          <MiniCard titulo="Retracto" texto="La contrataciÃ³n online informa precio, IVA y condiciones. El derecho a retracto se aplicarÃ¡ cuando corresponda segÃºn normativa vigente." />
+          <MiniCard titulo="Términos y condiciones" texto="Servicio SaaS de suscripción mensual o anual. El cliente debe ingresar información fidedigna y revisar sus reportes." />
+          <MiniCard titulo="Política de privacidad" texto="Los datos se usan para contratación, activación, facturación, soporte y comunicaciones del servicio." />
+          <MiniCard titulo="Seguridad" texto="Acceso autenticado, roles de usuario, separación por empresa y bloqueo automático de demos vencidas." />
+          <MiniCard titulo="Retracto" texto="La contratación online informa precio, IVA y condiciones. El derecho a retracto se aplicará cuando corresponda según normativa vigente." />
         </div>
       </section>
 
@@ -322,11 +322,11 @@ export default function Inicio() {
         <h2 style={seccionTitulo}>Datos de empresa</h2>
         <div style={datosEmpresaBox}>
           <LineaResumen label="Web" valor="www.servcontablepro.cl" />
-          <LineaResumen label="AplicaciÃ³n" valor="app.servcontablepro.cl" />
+          <LineaResumen label="Aplicación" valor="app.servcontablepro.cl" />
           <LineaResumen label="Demo" valor="demo.servcontablepro.cl" />
           <LineaResumen label="Contacto" valor="contacto@servcontablepro.cl" />
           <LineaResumen label="WhatsApp" valor="+56984508073" />
-          <LineaResumen label="RazÃ³n social / RUT" valor="Completar datos de la empresa emisora en producciÃ³n" />
+          <LineaResumen label="Razón social / RUT" valor="Completar datos de la empresa emisora en producción" />
         </div>
       </section>
 
@@ -347,7 +347,7 @@ export default function Inicio() {
                 required
               />
               <Campo
-                label="Correo electronico"
+                label="Correo electrónico"
                 type="email"
                 value={formulario.correo}
                 onChange={(valor) => cambiarCampo("correo", valor)}

@@ -156,7 +156,7 @@ export default function RegistroBoletas() {
           </label>
 
           <label style={field}>
-            AÃ±o
+            Año
             <select style={input} value={anio} onChange={(e) => setAnio(e.target.value)}>
               <option value={anioActivo}>{anioActivo}</option>
             </select>
@@ -238,7 +238,7 @@ export default function RegistroBoletas() {
               {boletas.length === 0 ? (
                 <tr>
                   <td style={td} colSpan="9">
-                    No hay boletas registradas para el periodo seleccionado.
+                    No hay boletas registradas para el período seleccionado.
                   </td>
                 </tr>
               ) : (

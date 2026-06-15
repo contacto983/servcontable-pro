@@ -156,7 +156,7 @@ export default function LibroMayor() {
       data.push([
         "Fecha",
         "Tipo",
-        "N?",
+        "N°",
         "Glosa",
         "Debe",
         "Haber",
@@ -429,7 +429,7 @@ export default function LibroMayor() {
                 <tr>
                   <th style={th}>Fecha</th>
                   <th style={th}>Tipo</th>
-                  <th style={th}>N?</th>
+                  <th style={th}>N°</th>
                   <th style={th}>Glosa</th>
                   <th style={thNumero}>Debe</th>
                   <th style={thNumero}>Haber</th>

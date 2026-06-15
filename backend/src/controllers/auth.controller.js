@@ -81,7 +81,7 @@ function normalizarActivo(valor, valorActual = true) {
 
   const texto = String(valor ?? "").trim().toLowerCase();
 
-  if (["true", "1", "si", "sÃ­", "activo"].includes(texto)) {
+  if (["true", "1", "si", "s?", "activo"].includes(texto)) {
     return true;
   }
 
@@ -1013,7 +1013,7 @@ async function resetearPasswordUsuario(req, res) {
     }
 
     return res.json({
-      mensaje: "Contrasena actualizada correctamente",
+      mensaje: "Contraseña actualizada correctamente",
       usuario: actualizado.rows[0],
     });
   } catch (error) {
@@ -1031,7 +1031,7 @@ async function solicitarRecuperacionPassword(req, res) {
 
     if (!email) {
       return res.status(400).json({
-        error: "El correo electronico es obligatorio",
+        error: "El correo electrónico es obligatorio",
       });
     }
 
@@ -1162,7 +1162,7 @@ async function resetearPasswordConToken(req, res) {
     transaccionIniciada = false;
 
     return res.json({
-      mensaje: "Contrasena actualizada correctamente. Ya puedes iniciar sesion.",
+      mensaje: "Contraseña actualizada correctamente. Ya puedes iniciar sesion.",
     });
   } catch (error) {
     if (transaccionIniciada) {

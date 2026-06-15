@@ -431,7 +431,7 @@ export default function SaldoVacacionesRemuneraciones() {
               {saldos.length === 0 && (
                 <tr>
                   <td style={td} colSpan="10">
-                    No hay datos para el periodo seleccionado.
+                    No hay datos para el período seleccionado.
                   </td>
                 </tr>
               )}

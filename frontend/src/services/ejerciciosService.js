@@ -17,7 +17,7 @@ export async function listarEjercicios(empresa_id) {
   const data = await respuesta.json();
 
   if (!respuesta.ok) {
-    throw new Error(data.error || "Error al listar aÃ±os de trabajo");
+    throw new Error(data.error || "Error al listar años de trabajo");
   }
 
   return data;
@@ -38,7 +38,7 @@ export async function crearEjercicio(datos) {
   const data = await respuesta.json();
 
   if (!respuesta.ok) {
-    throw new Error(data.error || "Error al crear aÃ±o de trabajo");
+    throw new Error(data.error || "Error al crear año de trabajo");
   }
 
   return data;
@@ -59,7 +59,7 @@ export async function cerrarEjercicio(id, datos) {
   const data = await respuesta.json();
 
   if (!respuesta.ok) {
-    throw new Error(data.error || "Error al cerrar aÃ±o de trabajo");
+    throw new Error(data.error || "Error al cerrar año de trabajo");
   }
 
   return data;
@@ -80,7 +80,7 @@ export async function reabrirEjercicio(id, datos) {
   const data = await respuesta.json();
 
   if (!respuesta.ok) {
-    throw new Error(data.error || "Error al reabrir aÃ±o de trabajo");
+    throw new Error(data.error || "Error al reabrir año de trabajo");
   }
 
   return data;

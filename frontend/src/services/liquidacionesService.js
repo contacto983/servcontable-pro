@@ -19,7 +19,7 @@ export async function calcularLiquidacion(datos) {
   const data = await respuesta.json();
 
   if (!respuesta.ok) {
-    throw new Error(data.error || "Error al calcular liquidaciÃ³n");
+    throw new Error(data.error || "Error al calcular liquidación");
   }
 
   return data;
@@ -40,7 +40,7 @@ export async function guardarLiquidacion(datos) {
   const data = await respuesta.json();
 
   if (!respuesta.ok) {
-    throw new Error(data.error || "Error al guardar liquidaciÃ³n");
+    throw new Error(data.error || "Error al guardar liquidación");
   }
 
   return data;

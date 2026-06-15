@@ -21,7 +21,7 @@ export async function obtenerConfiguracionRemuneraciones(empresaId, periodo) {
 
   if (!respuesta.ok) {
     throw new Error(
-      data.error || "Error al obtener configuraciÃ³n de remuneraciones"
+      data.error || "Error al obtener configuración de remuneraciones"
     );
   }
 
@@ -44,7 +44,7 @@ export async function guardarConfiguracionRemuneraciones(datos) {
 
   if (!respuesta.ok) {
     throw new Error(
-      data.error || "Error al guardar configuraciÃ³n de remuneraciones"
+      data.error || "Error al guardar configuración de remuneraciones"
     );
   }
 
@@ -66,7 +66,7 @@ export async function guardarAFP(datos) {
   const data = await respuesta.json();
 
   if (!respuesta.ok) {
-    throw new Error(data.error || "Error al guardar AFP del perÃ­odo");
+    throw new Error(data.error || "Error al guardar AFP del período");
   }
 
   return data;
@@ -117,7 +117,7 @@ export async function copiarConfiguracionRemuneracionesPeriodo(datos) {
 
   if (!respuesta.ok) {
     throw new Error(
-      data.error || "Error al copiar configuraciÃ³n de remuneraciones"
+      data.error || "Error al copiar configuración de remuneraciones"
     );
   }
 

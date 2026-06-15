@@ -35,7 +35,7 @@ export async function obtenerAnalisisCuentas({
   const data = await respuesta.json();
 
   if (!respuesta.ok) {
-    throw new Error(data.error || "Error al obtener anÃ¡lisis de cuentas");
+    throw new Error(data.error || "Error al obtener análisis de cuentas");
   }
 
   return data;

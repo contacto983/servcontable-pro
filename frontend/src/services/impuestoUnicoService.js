@@ -24,7 +24,7 @@ export async function listarTramosImpuestoUnico(empresaId, periodo) {
   const data = await respuesta.json();
 
   if (!respuesta.ok) {
-    throw new Error(data.error || "Error al listar tramos de impuesto Ãºnico");
+    throw new Error(data.error || "Error al listar tramos de impuesto único");
   }
 
   return data;
@@ -45,7 +45,7 @@ export async function guardarTramoImpuestoUnico(datos) {
   const data = await respuesta.json();
 
   if (!respuesta.ok) {
-    throw new Error(data.error || "Error al guardar tramo de impuesto Ãºnico");
+    throw new Error(data.error || "Error al guardar tramo de impuesto único");
   }
 
   return data;
@@ -68,7 +68,7 @@ export async function eliminarTramoImpuestoUnico(id, empresaId) {
   const data = await respuesta.json();
 
   if (!respuesta.ok) {
-    throw new Error(data.error || "Error al eliminar tramo de impuesto Ãºnico");
+    throw new Error(data.error || "Error al eliminar tramo de impuesto único");
   }
 
   return data;
@@ -92,7 +92,7 @@ export async function eliminarTramosPeriodo(empresaId, periodo) {
   const data = await respuesta.json();
 
   if (!respuesta.ok) {
-    throw new Error(data.error || "Error al eliminar tramos del perÃ­odo");
+    throw new Error(data.error || "Error al eliminar tramos del período");
   }
 
   return data;

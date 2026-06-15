@@ -204,7 +204,7 @@ async function importarCartola(req, res) {
           "Fecha Movimiento",
           "Fecha Contable",
           "Fecha Transaccion",
-          "Fecha TransacciÃ³n",
+          "Fecha Transacción",
         ])
       );
 
@@ -218,7 +218,7 @@ async function importarCartola(req, res) {
         String(
           valorFila(fila, [
             "Descripcion",
-            "DescripciÃ³n",
+            "Descripción",
             "Glosa",
             "Detalle",
             "Movimiento",
@@ -226,10 +226,10 @@ async function importarCartola(req, res) {
           ]) || "Movimiento bancario"
         ).trim() || "Movimiento bancario";
       const documento = String(
-        valorFila(fila, ["Documento", "Nro", "Numero", "NÃºmero", "Referencia"]) || ""
+        valorFila(fila, ["Documento", "Nro", "Numero", "Número", "Referencia"]) || ""
       ).trim();
       let cargo = convertirMonto(valorFila(fila, ["Cargo", "Cargos", "Debe", "Egreso", "Retiros"]));
-      let abono = convertirMonto(valorFila(fila, ["Abono", "Abonos", "Haber", "Ingreso", "Depositos", "DepÃ³sitos"]));
+      let abono = convertirMonto(valorFila(fila, ["Abono", "Abonos", "Haber", "Ingreso", "Depositos", "Depósitos"]));
       const montoInformado = convertirMonto(valorFila(fila, ["Monto", "Importe", "Valor"]));
       const saldo = convertirMonto(valorFila(fila, ["Saldo", "Saldo Contable", "Saldo Disponible"]));
 

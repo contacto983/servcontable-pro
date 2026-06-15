@@ -98,7 +98,7 @@ function RenovarSuscripcion({
 
   async function actualizarEstado() {
     setError("");
-    setMensaje("Actualizando estado de la suscripciÃ³n...");
+    setMensaje("Actualizando estado de la suscripción...");
 
     try {
       const usuarioActualizado = await obtenerSesionActualizada();
@@ -128,8 +128,8 @@ function RenovarSuscripcion({
           <div className="sc-renewal-dialog">
             <div className="sc-renewal-question">?</div>
             <p>
-              Tu suscripciÃ³n expirÃ³ el <strong>{formatearFecha(fechaVence)}</strong>.
-              Â¿Deseas renovarla?
+              Tu suscripción expir? el <strong>{formatearFecha(fechaVence)}</strong>.
+              ¿Deseas renovarla?
             </p>
             <div className="sc-actions-row">
               <button
@@ -152,9 +152,9 @@ function RenovarSuscripcion({
       <main className="sc-renewal-content">
         <section className="serv-modulo-hero sc-renewal-hero">
           <div className="serv-modulo-hero__texto">
-            <h1>Renovar suscripciÃ³n</h1>
+            <h1>Renovar suscripción</h1>
             <p>
-              Tu acceso estÃ¡ vencido. Renueva el plan para volver a utilizar los mÃ³dulos
+              Tu acceso está vencido. Renueva el plan para volver a utilizar los módulos
               contables y de remuneraciones.
             </p>
           </div>
@@ -229,7 +229,7 @@ function RenovarSuscripcion({
 
           {plan === "anual" && (
             <p className="sc-renewal-note">
-              Pago anual de una vez: 12 meses x $14.990 neto, mÃ¡s IVA.
+              Pago anual de una vez: 12 meses x $14.990 neto, más IVA.
             </p>
           )}
 
